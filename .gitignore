@@ -1,0 +1,21 @@
+# dependencies
+node_modules/
+
+# vercel
+.vercel/
+
+# env — real values never get committed
+.env
+.env.*
+!.env.example
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# build scratch
+*.png
+!public/**/*.png
