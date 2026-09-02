@@ -16,6 +16,30 @@ Keller and Haslet over Labor Day weekend 2026.
 - **Food and detours** — nearby restaurants with rating, review count and the
   platform each figure came from, plus non-house stops worth the drive.
 
+## Errand times
+
+Every house carries real driving times to the stops the family actually uses, so a
+house that looks fine on the map can be checked against the weekly Costco run:
+
+| Stop | Source |
+| --- | --- |
+| Costco / Sam's Club | Overpass, brand-filtered |
+| Grocery | Kroger, Tom Thumb, Albertsons, Aldi, Sprouts, H-E-B, WinCo, Whole Foods |
+| Walmart / Target | Supercenter, Neighborhood Market, Target |
+| Park | named `leisure=park` |
+| Pharmacy | CVS, Walgreens, in-store counters |
+| Urgent care | urgent care, ER, hospital |
+
+Times come from the public OSRM demo server (`/table/v1/driving`), which routes over
+real road geometry but assumes **free-flow traffic** — add a few minutes for a 5pm or
+Saturday-morning run. Distances are road miles, not straight lines.
+
+The comparison table under the map sorts on any column and carries a weighted
+convenience score (Costco and grocery 30% each, big box 15%, park 10%, pharmacy 10%,
+urgent care 5%; lower is better). Every house on the list uses the same Costco on
+Presidio Vista Dr off I-35W, and the worst Costco run in the set is 13.9 minutes —
+nothing here is anywhere near an hour.
+
 ## Run it
 
 Static single file. Anything that serves a directory will do:
@@ -39,7 +63,9 @@ vercel --prod # production
 Houses, restaurants and stops are JSON literals at the top of the inline `<script>`
 in `public/index.html` (`HOUSES`, `FOOD`, `STOPS`). Coordinates are decimal degrees.
 Road geometry is a delta-encoded array in the same script, generated from an
-Overpass API query over the bounding box `32.86,-97.42,33.00,-97.20`.
+Overpass API query over the bounding box `32.86,-97.42,33.00,-97.20`. Errand times
+and amenity pins are the `ERR` and `AMEN` literals, built from Overpass plus an OSRM
+distance-matrix call per category.
 
 ### Known data gap
 
