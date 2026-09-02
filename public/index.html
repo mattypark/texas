@@ -88,7 +88,9 @@ svg.map.drag{cursor:grabbing}
 
 /* ---------------- map chrome ---------------- */
 .reveal{position:absolute;top:12px;left:12px;z-index:25;background:var(--ui);border-radius:8px;box-shadow:var(--sh-1);width:40px;height:40px;display:none;place-items:center;color:var(--ink-2)}
-.side.hidden ~ .mapstage .reveal{display:grid}
+.side.hidden ~ .mapstage .reveal:not(.right){display:grid}
+.reveal.right{left:auto;right:12px}
+body.listhidden .reveal.right{display:grid}
 .mapsearch{
   position:absolute;top:12px;left:12px;z-index:16;background:var(--ui);border-radius:8px;box-shadow:var(--sh-1);
   display:flex;align-items:center;gap:10px;padding:0 14px;height:44px;color:var(--ink-2);font-size:14px;max-width:calc(100% - 24px);
@@ -467,7 +469,7 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
   .mapstage{order:1;flex:1;height:auto;min-height:0}
   .fab-menu{display:grid}
   .mobdays{display:flex}
-  .mapsearch,.reveal{display:none}
+  .mapsearch,.reveal{display:none!important}
   .side{position:fixed;inset:0 auto 0 0;width:86vw;max-width:330px;z-index:90;margin-left:0!important;
     transform:translateX(-102%);transition:transform .24s cubic-bezier(.2,0,0,1);border-right:1px solid var(--line)}
   .side.open{transform:translateX(0)}
@@ -580,6 +582,9 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
     <div class="mobdays" id="mobDays"></div>
     <button class="reveal" id="showSide" title="Show panel" aria-label="Show panel">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 18h18v-2H3zm0-5h18v-2H3zm0-7v2h18V6z"/></svg>
+    </button>
+    <button class="reveal right" id="showList" title="Show the house list" aria-label="Show the house list">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h2v2H4zm0 5h2v2H4zm0 5h2v2H4zM8 6h12v2H8zm0 5h12v2H8zm0 5h12v2H8z"/></svg>
     </button>
     <div class="mapsearch"><svg viewBox="0 0 24 24" width="20" height="20" fill="#80868B"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/></svg><span><b>14 houses</b> &middot; 3 driving routes</span></div>
     <svg class="map" id="map" aria-label="Map of the 14 houses"></svg>
@@ -2014,11 +2019,17 @@ document.querySelectorAll(".row[data-f]").forEach(function(r){
 });
 document.getElementById("hideSide").onclick=function(){ document.getElementById("side").classList.add("hidden"); setTimeout(function(){ measure(); applyView(); },240); };
 document.getElementById("showSide").onclick=function(){ document.getElementById("side").classList.remove("hidden"); setTimeout(function(){ measure(); applyView(); },240); };
-document.getElementById("hideList").onclick=function(){
-  var l=document.getElementById("list"); l.classList.toggle("hidden");
-  this.style.transform=l.classList.contains("hidden")?"rotate(180deg)":"";
+function setListHidden(hide){
+  var l=document.getElementById("list");
+  l.classList.toggle("hidden",hide);
+  document.body.classList.toggle("listhidden",hide);
   setTimeout(function(){ measure(); applyView(); },240);
+}
+document.getElementById("hideList").onclick=function(){
+  if(isPhone&&isPhone()){ closeList(); return; }
+  setListHidden(!document.getElementById("list").classList.contains("hidden"));
 };
+document.getElementById("showList").onclick=function(){ setListHidden(false); };
 document.getElementById("reset").onclick=function(){
   if(!confirm("Clear every checkmark, time and note?")) return;
   state={}; save(); location.reload();
