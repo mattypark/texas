@@ -48,6 +48,32 @@ urgent care 5%; lower is better). Every house on the list uses the same Costco o
 Presidio Vista Dr off I-35W, and the worst Costco run in the set is 13.9 minutes —
 nothing here is anywhere near an hour.
 
+## What is real, and what is not
+
+| Feature | Backing |
+| --- | --- |
+| Map, roads, water, parks | OpenStreetMap geometry, drawn as inline SVG — no tile server, no key |
+| Driving routes and every drive time | OSRM public routing (real roads, free-flow traffic) |
+| House thumbnails | drawn from OSM buildings and streets for that block |
+| Brand marks (Costco, Kroger, Walmart, Target…) | drawn approximations in each chain's own colours, not official artwork |
+| Terrain style | a green-relief palette variant, not elevation shading |
+| Traffic / Satellite | not available — both need a paid Google Maps key, shown disabled in the Layers panel |
+
+Realtor, Zillow, Redfin and Homes all block automated requests (403/429), so listing
+photos cannot be fetched. Two ways to get real pictures:
+
+1. Save photos as `public/houses/1.jpg` … `14.jpg` — they replace the drawings.
+2. Put a Google Maps API key with the Street View Static API enabled in
+   `public/config.js` and every house shows its own Street View shot automatically.
+
+## On the phone
+
+Below 900px the layout becomes map-on-top, list-below, with a fixed bottom bar that
+tracks the next unvisited house: its number, the day and start time, live distance
+and ETA from the current location (tap the crosshair on the map to turn location on),
+and three buttons — Drive here, Mark visited, Note. Marking a house visited stamps
+the time it happened, and the stamp is included in Copy notes.
+
 ## Run it
 
 Static single file. Anything that serves a directory will do:
