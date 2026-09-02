@@ -293,8 +293,8 @@ body.focusmode .mapsearch{display:none}
   .fp-img{height:140px}
 }
 
-.preview{position:fixed;z-index:60;width:300px;background:var(--ui);border-radius:10px;box-shadow:var(--sh-2);overflow:hidden;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .13s,transform .13s;border:1px solid var(--line)}
-.preview.on{opacity:1;transform:translateY(0)}
+.preview{position:fixed;z-index:60;width:300px;background:var(--ui);border-radius:10px;box-shadow:var(--sh-2);overflow:hidden;opacity:0;transform:translateY(4px);pointer-events:none;transition:opacity .13s,transform .13s;border:1px solid var(--line)}
+.preview.on{opacity:1;transform:translateY(0);pointer-events:auto}
 .preview .pv-map{height:158px;background:var(--land);position:relative}
 .preview .pv-map > svg,.preview .pv-map > img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .preview .pv-cap{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.9);border-radius:4px;padding:2px 7px;font-size:10.5px;color:var(--ink-2)}
@@ -312,6 +312,11 @@ body.focusmode .mapsearch{display:none}
 .preview .pv-who{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink-3)}
 .preview .pv-pin{position:absolute;left:8px;top:8px;min-width:22px;height:22px;border-radius:99px;color:#fff;
   font-size:12px;font-weight:700;display:grid;place-items:center;padding:0 6px;box-shadow:0 1px 3px rgba(0,0,0,.4);z-index:2}
+.preview .pv-link{display:flex;align-items:center;gap:6px;margin-top:8px;padding:6px 8px;border-radius:6px;
+  background:var(--ui-2);color:var(--blue);font-size:11px;text-decoration:none}
+.preview .pv-link:hover{background:color-mix(in srgb,var(--blue) 12%,transparent);text-decoration:none}
+.preview .pv-link svg{flex:none;opacity:.8}
+.preview .pv-url{font-family:"Roboto Mono",monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .preview .pv-foot{display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:7px;border-top:1px solid var(--line);
   font-size:11px;color:var(--ink-3)}
 .preview .pv-seen{color:var(--green-ui);font-weight:500}
@@ -1196,7 +1201,7 @@ svg.addEventListener("wheel",function(e){
 },{passive:false});
 var drag=null,pinch=null;
 svg.addEventListener("pointerdown",function(e){
-  hidePreview();
+  hidePreview(true);
   drag={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y,moved:false};
   svg.classList.add("drag"); svg.setPointerCapture(e.pointerId);
 });
@@ -1633,6 +1638,11 @@ function addPhotoFromURL(n,url){
 
 /* hover preview */
 var pv=document.getElementById("preview"),pvTimer=null;
+function shortURL(u){
+  var mls=(u.match(/_(M\d+-\d+)/)||[])[1];
+  var host=u.replace(/^https?:\/\/(www\.)?/,"").split("/")[0];
+  return mls ? host+"/…/"+mls : u.replace(/^https?:\/\/(www\.)?/,"").slice(0,46);
+}
 function showPreview(h,rect){
   var e=ERR[h.n], list=photoList(h.n);
   var shot=list[0]||photoURL(h,300,170);
@@ -1656,8 +1666,11 @@ function showPreview(h,rect){
           return '<span>'+esc(r.b&&BRAND[r.b]?BRAND[r.b].label:CATMETA[k].label)+' <b>'+r.m+' min</b></span>';
         }).join("")+
       '</div>'+
+      '<a class="pv-link" href="'+h.url+'" target="_blank" rel="noopener" title="'+esc(h.url)+'">'+
+        '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M14 3v2h3.6l-9.8 9.8 1.4 1.4L19 6.4V10h2V3zM5 5h5V3H3v18h18v-7h-2v5H5z"/></svg>'+
+        '<span class="pv-url">'+esc(shortURL(h.url))+'</span></a>'+
       '<div class="pv-foot">'+(st(h.n).seen?'<span class="pv-seen">Visited'+(st(h.n).at?" "+st(h.n).at:"")+'</span>':'')+
-        '<span class="pv-hint">Click for routes &amp; listing</span></div>'+
+        '<span class="pv-hint">Click the pin for its routes</span></div>'+
     '</div>';
   var top=Math.min(Math.max(rect.top-30,12),window.innerHeight-360);
   var left=rect.left-316;
@@ -1665,7 +1678,14 @@ function showPreview(h,rect){
   pv.style.top=top+"px"; pv.style.left=left+"px";
   pv.classList.add("on");
 }
-function hidePreview(){ pv.classList.remove("on"); }
+var pvHide=null;
+function hidePreview(now){
+  clearTimeout(pvHide);
+  if(now){ pv.classList.remove("on"); return; }
+  pvHide=setTimeout(function(){ pv.classList.remove("on"); },240);
+}
+pv.addEventListener("pointerenter",function(){ clearTimeout(pvHide); clearTimeout(pvTimer); });
+pv.addEventListener("pointerleave",function(){ hidePreview(); });
 daysBox.addEventListener("mouseover",function(e){
   var card=e.target.closest(".hcard"); if(!card) return;
   clearTimeout(pvTimer);
@@ -1673,7 +1693,7 @@ daysBox.addEventListener("mouseover",function(e){
   pvTimer=setTimeout(function(){ showPreview(h,card.getBoundingClientRect()); },90);
 });
 daysBox.addEventListener("mouseleave",function(){ clearTimeout(pvTimer); hidePreview(); });
-document.getElementById("list").addEventListener("scroll",hidePreview);
+document.getElementById("list").addEventListener("scroll",function(){ hidePreview(true); });
 
 /* ---------------- activities / food / stops ---------------- */
 function poiRow(o){
