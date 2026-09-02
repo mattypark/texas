@@ -11,9 +11,10 @@ Keller and Haslet over Labor Day weekend 2026.
   restaurants and things to do each get their own marker.
 - **Three-pane layout** — a collapsible left panel with full-row layer toggles, the
   map, and a collapsible route list on the right.
-- **House previews** — each house shows a drawing of its own block (real streets and
-  building footprints within 0.2 mi); hovering opens a larger preview with its
-  errand times. Drop `public/houses/<n>.jpg` to use a real photo instead.
+- **House previews** — hovering a map pin or a card opens a card with the photo, the
+  asking price, the group rating and who gave what, six errand times and the listing.
+  Without a photo it falls back to a drawing of that block, built from real street and
+  building footprints.
 - **Three day routes** — pins colored by day and joined in the visiting order from
   the agent's email: Saturday east of I-35W, Sunday northwest, Monday southwest.
 - **Check off as you go** — each house takes a visited tick, a Yes / Maybe / No
@@ -93,10 +94,25 @@ Static single file. Anything that serves a directory will do:
 npx serve public          # or: python3 -m http.server -d public 8000
 ```
 
-## Shared photos (optional, one click)
+## Ratings, prices and sync
 
-Photos are stored per-browser until a Blob store is attached. To make every phone and
-laptop see the same pictures:
+Five people rate every house 1–5: Andrew, Matthew, Uria, Sam and Mhiwa. Pick your name
+in **Rating as** in the left panel, then tap stars on any card or in the house detail.
+Each card shows your stars plus the group average and who gave what; the detail panel
+lists all five. Asking prices are editable on any card — click the price (or *Add
+price*) and type it once.
+
+Everything the five of you touch — visited ticks and times, ratings, prices, notes —
+lives in one JSON document at `api/state.js`. Every field is stored as
+`{ v: value, t: timestamp }` and merged field-by-field on the server, so two people
+editing different houses (or different fields of the same house) never overwrite each
+other. Clients push edits 0.7s after the last keystroke and pull every 12 seconds, on
+tab focus, and when the network comes back.
+
+## Shared photos and state (optional, one click)
+
+Photos and shared state are stored per-browser until a Blob store is attached. To make
+every phone and laptop see the same pictures and ratings:
 
 1. Vercel dashboard → **Storage** → **Create Blob store** → connect it to this project.
 2. Redeploy. Vercel injects `BLOB_READ_WRITE_TOKEN`; `api/photos.js` picks it up.
@@ -106,7 +122,8 @@ device only*. Without the store nothing breaks — the API returns `enabled:fals
 the page keeps photos locally.
 
 `GET /api/photos` lists them, `POST /api/photos?house=3` adds one, `DELETE
-/api/photos?url=…` removes one.
+/api/photos?url=…` removes one. `GET /api/state` reads the shared trip document and
+`PUT /api/state` merges an update into it.
 
 ## Deploy
 
