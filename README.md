@@ -75,11 +75,15 @@ listing photos cannot be fetched here. Two ways to get real pictures:
 
 ## On the phone
 
-Below 900px the layout becomes map-on-top, list-below, with a fixed bottom bar that
-tracks the next unvisited house: its number, the day and start time, live distance
-and ETA from the current location (tap the crosshair on the map to turn location on),
-and three buttons — Drive here, Mark visited, Note. Marking a house visited stamps
-the time it happened, and the stamp is included in Copy notes.
+Below 900px the map fills the screen. A hamburger opens the days, layers and progress
+as a drawer; Sat / Sun / Mon chips sit across the top with **All 14 & errand times**,
+which slides the full list up. Along the bottom is a swipeable strip of the houses in
+visiting order, each showing its four errand times.
+
+Tapping a house zooms to it, hides the other thirteen and their day routes, and draws
+that house's own runs to Costco, its grocery, Walmart and its park, with a card
+carrying the times, photos and a route link each. Tapping it again, or Show all 14,
+comes back out.
 
 ## Run it
 
@@ -88,6 +92,21 @@ Static single file. Anything that serves a directory will do:
 ```bash
 npx serve public          # or: python3 -m http.server -d public 8000
 ```
+
+## Shared photos (optional, one click)
+
+Photos are stored per-browser until a Blob store is attached. To make every phone and
+laptop see the same pictures:
+
+1. Vercel dashboard → **Storage** → **Create Blob store** → connect it to this project.
+2. Redeploy. Vercel injects `BLOB_READ_WRITE_TOKEN`; `api/photos.js` picks it up.
+
+The left panel then reads **Shared with every device** instead of *Saved on this
+device only*. Without the store nothing breaks — the API returns `enabled:false` and
+the page keeps photos locally.
+
+`GET /api/photos` lists them, `POST /api/photos?house=3` adds one, `DELETE
+/api/photos?url=…` removes one.
 
 ## Deploy
 
