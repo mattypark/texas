@@ -56,14 +56,19 @@ nothing here is anywhere near an hour.
 | Driving routes and every drive time | OSRM public routing (real roads, free-flow traffic) |
 | House thumbnails | drawn from OSM buildings and streets for that block |
 | Brand marks (Costco, Kroger, Walmart, Target…) | drawn approximations in each chain's own colours, not official artwork |
-| Terrain style | a green-relief palette variant, not elevation shading |
-| Traffic / Satellite | not available — both need a paid Google Maps key, shown disabled in the Layers panel |
+| Satellite | real aerial imagery — Esri World Imagery tiles, free, no key |
+| Terrain | real hillshade — Esri World Hillshade tiles, free, no key |
+| Named places | 800+ restaurants, shops, schools and parks from OSM, drawn as you zoom in |
+| Live traffic | not available — no free provider offers it; needs a paid Google/TomTom/HERE/Mapbox key |
 
 Realtor, Zillow, Redfin and Homes all block automated requests (403/429), so listing
 photos cannot be fetched. Two ways to get real pictures:
 
-1. Save photos as `public/houses/1.jpg` … `14.jpg` — they replace the drawings.
-2. Put a Google Maps API key with the Street View Static API enabled in
+1. **Add them from the page.** Hover a house thumbnail and press the camera button,
+   pick a photo from the phone or laptop, and it replaces the drawing. Photos are
+   downscaled to 900px and kept in that browser — no commit, no upload, no key.
+2. **Commit them.** Save photos as `public/houses/1.jpg` … `14.jpg`.
+3. **Street View.** Put a Google Maps key (Street View Static API) in
    `public/config.js` and every house shows its own Street View shot automatically.
 
 ## On the phone
