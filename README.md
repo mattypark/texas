@@ -15,6 +15,10 @@ Keller and Haslet over Labor Day weekend 2026.
   asking price, the group rating and who gave what, six errand times and the listing.
   Without a photo it falls back to a drawing of that block, built from real street and
   building footprints.
+- **The whole weekend, not just the houses** — Saturday's showings run into the TCU
+  campus walk at 4pm and the End of Summer Bash on Locke Ave from 5 to 8, with the
+  drive legs between them and the RSVP number. Both appear on the map on the Saturday
+  layer with their own violet route down from the last house.
 - **Three day routes** — pins colored by day and joined in the visiting order from
   the agent's email: Saturday east of I-35W, Sunday northwest, Monday southwest.
 - **Check off as you go** — each house takes a visited tick, a Yes / Maybe / No
