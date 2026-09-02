@@ -498,7 +498,7 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
     <div id="stops"></div>
 
     <div class="foot">
-      <p style="margin:0 0 8px"><strong>House pictures.</strong> Realtor, Zillow and Redfin block automated requests &mdash; a stealth scraper gets a 429 too &mdash; so the thumbnails are drawings of each block from OpenStreetMap street and building data. Three ways to get real photos in: press the camera button on a thumbnail, drag an image file onto it, or paste one while a house is open. They save in this browser. You can also commit files to <code>public/houses/1.jpg</code>&hellip;<code>14.jpg</code>, or add a Google Maps key in <code>public/config.js</code> for automatic Street View.</p>
+      <p style="margin:0 0 8px"><strong>House pictures.</strong> Realtor, Zillow and Redfin block automated requests &mdash; a stealth scraper gets a 429 too &mdash; so the thumbnails are drawings of each block from OpenStreetMap street and building data. Three ways to get real photos in: press the camera button on a thumbnail, drag an image file onto it, or copy a photo (or right-click &rarr; Copy image address) on the listing and paste it while that house is selected. They save in this browser. You can also commit files to <code>public/houses/1.jpg</code>&hellip;<code>14.jpg</code>, or add a Google Maps key in <code>public/config.js</code> for automatic Street View.</p>
       <p style="margin:0 0 8px"><strong>#2, Colonial Trace</strong> could not be geocoded &mdash; the email says Colonial Trace Ln, Fort Worth 76244; the Realtor link says Colonial Trace Rd, Keller 76244.</p>
       <p style="margin:0">Traffic and satellite layers need a paid Google Maps key; everything else here runs with no key at all. Checkmarks, times and notes save in this browser only.</p>
     </div>
@@ -1201,12 +1201,40 @@ daysBox.addEventListener("drop",function(e){
   if(f&&/^image\//.test(f.type)) addPhoto(+t.dataset.thumb,f);
 });
 addEventListener("paste",function(e){
-  if(focused===null) return;
-  var items=e.clipboardData&&e.clipboardData.items; if(!items) return;
+  var target = focused!==null ? focused : selected;
+  if(target===null||target===undefined) return;
+  var cd=e.clipboardData; if(!cd) return;
+  var items=cd.items||[];
   for(var i=0;i<items.length;i++){
-    if(items[i].type.indexOf("image")===0){ addPhoto(focused,items[i].getAsFile()); e.preventDefault(); return; }
+    if(items[i].type.indexOf("image")===0){ addPhoto(target,items[i].getAsFile()); e.preventDefault(); return; }
   }
+  /* "Copy image address" on a listing gives a URL — take that too. */
+  var txt=(cd.getData("text/plain")||"").trim();
+  if(/^https?:\/\/\S+$/i.test(txt)){ addPhotoFromURL(target,txt); e.preventDefault(); }
 });
+function addPhotoFromURL(n,url){
+  var img=new Image();
+  img.crossOrigin="anonymous";
+  img.onload=function(){
+    try{
+      var max=900,sc=Math.min(1,max/Math.max(img.width,img.height));
+      var c=document.createElement("canvas");
+      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+      photos[n]=c.toDataURL("image/jpeg",0.72);
+    }catch(err){
+      photos[n]=url;   /* host blocks canvas reads — keep the link instead */
+    }
+    if(savePhotos()){ refreshThumb(n); if(focused===n) showFocusPanel(HOUSES.filter(function(x){return x.n===+n;})[0]); }
+  };
+  img.onerror=function(){
+    var plain=new Image();
+    plain.onload=function(){ photos[n]=url; if(savePhotos()){ refreshThumb(n); } };
+    plain.onerror=function(){ alert("That link did not load as an image. Save the photo to your computer and drag it onto the card instead."); };
+    plain.src=url;
+  };
+  img.src=url;
+}
 
 /* hover preview */
 var pv=document.getElementById("preview"),pvTimer=null;
