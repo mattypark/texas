@@ -61,12 +61,14 @@ nothing here is anywhere near an hour.
 | Named places | 800+ restaurants, shops, schools and parks from OSM, drawn as you zoom in |
 | Live traffic | not available — no free provider offers it; needs a paid Google/TomTom/HERE/Mapbox key |
 
-Realtor, Zillow, Redfin and Homes all block automated requests (403/429), so listing
-photos cannot be fetched. Two ways to get real pictures:
+Realtor, Zillow, Redfin and Homes all block automated requests (403/429). Scrapling's
+StealthyFetcher (camoufox, real browser fingerprint) was tried against a listing and
+also came back 429 — the block is on the request source, not the fingerprint — so
+listing photos cannot be fetched here. Two ways to get real pictures:
 
-1. **Add them from the page.** Hover a house thumbnail and press the camera button,
-   pick a photo from the phone or laptop, and it replaces the drawing. Photos are
-   downscaled to 900px and kept in that browser — no commit, no upload, no key.
+1. **Add them from the page.** Press the camera button on a thumbnail, drag an image
+   file onto it, or paste one while a house is focused. Photos are downscaled to
+   900px and kept in that browser — no commit, no upload, no key.
 2. **Commit them.** Save photos as `public/houses/1.jpg` … `14.jpg`.
 3. **Street View.** Put a Google Maps key (Street View Static API) in
    `public/config.js` and every house shows its own Street View shot automatically.
