@@ -3,9 +3,17 @@
 Interactive map + check-off list for 14 house showings across north Fort Worth,
 Keller and Haslet over Labor Day weekend 2026.
 
-- **Map** — OpenStreetMap road geometry (I-35W, US-287, TX-170, FM 156, Golden
-  Triangle, Heritage Trace) rendered as inline SVG. Pan, wheel zoom, fit-to-pins,
-  scale bar. No tile server, no API key, no runtime dependencies.
+- **Map** — a Google-Maps-style vector map drawn from OpenStreetMap geometry:
+  road casings and fills, water, parks and green space, city labels. Pan, wheel
+  zoom, fit-to-pins, scale bar. No tile server, no API key, no dependencies.
+- **Icon markers** — houses carry a house marker with their visiting number as a
+  badge, coloured by day; Costco, groceries, Walmart/Target, parks, pharmacies,
+  restaurants and things to do each get their own marker.
+- **Three-pane layout** — a collapsible left panel with full-row layer toggles, the
+  map, and a collapsible route list on the right.
+- **House previews** — each house shows a drawing of its own block (real streets and
+  building footprints within 0.2 mi); hovering opens a larger preview with its
+  errand times. Drop `public/houses/<n>.jpg` to use a real photo instead.
 - **Three day routes** — pins colored by day and joined in the visiting order from
   the agent's email: Saturday east of I-35W, Sunday northwest, Monday southwest.
 - **Check off as you go** — each house takes a visited tick, a Yes / Maybe / No
