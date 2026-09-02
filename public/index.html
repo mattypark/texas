@@ -194,7 +194,7 @@ body.satmode .scalebar i{border-color:#E8EAED}
 .hcard.sel{background:color-mix(in srgb,var(--blue) 10%,transparent)}
 .hcard.next{box-shadow:inset 3px 0 0 var(--blue)}
 .thumb{grid-row:1/5;width:84px;height:84px;border-radius:8px;overflow:hidden;background:var(--land);border:1px solid var(--line);position:relative}
-.thumb svg,.thumb img{display:block;width:100%;height:100%;object-fit:cover}
+.thumb > svg,.thumb > img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .thumb .idx{position:absolute;left:5px;top:5px;min-width:20px;height:20px;border-radius:99px;background:var(--c);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center;padding:0 5px;box-shadow:0 1px 2px rgba(0,0,0,.35)}
 .thumb .leg{position:absolute;right:0;bottom:0;background:rgba(255,255,255,.9);font-size:10px;padding:1px 5px;border-radius:4px 0 0 0;color:var(--ink-2)}
 .hcard.done .thumb{filter:grayscale(.65) opacity(.8)}
@@ -236,13 +236,28 @@ body.satmode .scalebar i{border-color:#E8EAED}
 }
 #focusPanel.on{display:block}
 .side.hidden ~ .mapstage #focusPanel{left:64px}
-.fp-img{position:relative;height:172px;background:var(--land)}
-.fp-img svg,.fp-img img{display:block;width:100%;height:100%;object-fit:cover}
+.fp-img{position:relative;height:186px;background:var(--land);overflow:hidden}
+.fp-img > svg,.fp-img > img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .fp-x{position:absolute;right:8px;top:8px;width:28px;height:28px;border-radius:99px;background:rgba(255,255,255,.94);
   color:var(--ink-2);font-size:18px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.3)}
-.fp-cam{position:absolute;left:8px;bottom:8px;display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.94);
+.fp-tools{position:absolute;left:8px;bottom:8px;display:flex;gap:6px}
+.fp-cam{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.94);
   border-radius:99px;padding:4px 10px;font-size:11.5px;color:var(--ink-2);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.fp-del{position:absolute;right:8px;bottom:8px;width:26px;height:26px;border-radius:99px;background:rgba(255,255,255,.94);
+  color:var(--ink-2);display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.fp-del:hover{color:var(--red)}
+.fp-nav{position:absolute;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:99px;
+  background:rgba(255,255,255,.92);color:var(--ink);font-size:19px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.3);display:grid;place-items:center}
+.fp-nav.prev{left:8px} .fp-nav.next{right:8px}
+.fp-nav:hover{background:#fff}
+.fp-dots{position:absolute;left:0;right:0;bottom:44px;display:flex;justify-content:center;gap:5px}
+.fp-dots i{width:6px;height:6px;border-radius:99px;background:rgba(255,255,255,.6);box-shadow:0 0 2px rgba(0,0,0,.5);cursor:pointer;display:block}
+.fp-dots i.on{background:#fff;width:16px;border-radius:99px}
+.fp-img img{cursor:zoom-in}
+.pcount{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.62);color:#fff;font-size:9.5px;
+  padding:1px 5px;border-radius:4px;letter-spacing:.02em}
 .fp-cam:hover{color:var(--blue)}
+.thumb .leg{right:0;bottom:auto;top:0;border-radius:0 0 0 4px}
 .fp-body{padding:12px 14px 14px}
 .fp-h{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
 .fp-n{width:26px;height:26px;border-radius:99px;color:#fff;font-weight:700;font-size:13px;display:grid;place-items:center;flex:none}
@@ -265,7 +280,7 @@ body.focusmode .mapsearch{display:none}
 .preview{position:fixed;z-index:60;width:300px;background:var(--ui);border-radius:10px;box-shadow:var(--sh-2);overflow:hidden;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .13s,transform .13s;border:1px solid var(--line)}
 .preview.on{opacity:1;transform:translateY(0)}
 .preview .pv-map{height:170px;background:var(--land);position:relative}
-.preview .pv-map svg,.preview .pv-map img{display:block;width:100%;height:100%;object-fit:cover}
+.preview .pv-map > svg,.preview .pv-map > img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
 .preview .pv-cap{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.9);border-radius:4px;padding:2px 7px;font-size:10.5px;color:var(--ink-2)}
 .preview .pv-body{padding:10px 12px 12px}
 .preview .pv-body h4{font-size:14px;margin:0 0 2px}
@@ -498,7 +513,7 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
     <div id="stops"></div>
 
     <div class="foot">
-      <p style="margin:0 0 8px"><strong>House pictures.</strong> Realtor, Zillow and Redfin block automated requests &mdash; a stealth scraper gets a 429 too &mdash; so the thumbnails are drawings of each block from OpenStreetMap street and building data. Three ways to get real photos in: press the camera button on a thumbnail, drag an image file onto it, or copy a photo (or right-click &rarr; Copy image address) on the listing and paste it while that house is selected. They save in this browser. You can also commit files to <code>public/houses/1.jpg</code>&hellip;<code>14.jpg</code>, or add a Google Maps key in <code>public/config.js</code> for automatic Street View.</p>
+      <p style="margin:0 0 8px"><strong>House pictures.</strong> Realtor, Zillow and Redfin block automated requests &mdash; a stealth scraper gets a 429 too &mdash; so the thumbnails are drawings of each block from OpenStreetMap street and building data. Three ways to get real photos in: open a house and use <strong>Add photo</strong> (a file) or <strong>Paste link</strong> (right-click a listing photo &rarr; Copy image address). You can also drag a file onto a thumbnail. Up to six photos per house &mdash; flip through them with the arrows, the dots, or the &larr;/&rarr; keys. They save in this browser. You can also commit files to <code>public/houses/1.jpg</code>&hellip;<code>14.jpg</code>, or add a Google Maps key in <code>public/config.js</code> for automatic Street View.</p>
       <p style="margin:0 0 8px"><strong>#2, Colonial Trace</strong> could not be geocoded &mdash; the email says Colonial Trace Ln, Fort Worth 76244; the Realtor link says Colonial Trace Rd, Keller 76244.</p>
       <p style="margin:0">Traffic and satellite layers need a paid Google Maps key; everything else here runs with no key at all. Checkmarks, times and notes save in this browser only.</p>
     </div>
@@ -1031,8 +1046,13 @@ function hoodSVG(n,size,span){
   out+='<circle cx="'+o+'" cy="'+o+'" r="'+(size>200?9:7)+'" fill="'+col+'" stroke="#fff" stroke-width="2.5"/>';
   return out+'</svg>';
 }
+function photoList(n){
+  var v=photos[n];
+  if(!v) return [];
+  return typeof v==="string" ? [v] : v;      /* older saves held a single string */
+}
 function photoURL(h,w,ht){
-  var own=photos[h.n];
+  var own=photoList(h.n)[0];
   if(own) return own;
   if(MAPS_KEY) return "https://maps.googleapis.com/maps/api/streetview?size="+w+"x"+ht+
     "&location="+h.lat+","+h.lon+"&fov=70&pitch=4&source=outdoor&key="+MAPS_KEY;
@@ -1046,35 +1066,62 @@ function savePhotos(){
   try{ localStorage.setItem(PKEY,JSON.stringify(photos)); return true; }
   catch(e){ alert("This browser is out of storage for photos — remove one before adding another."); return false; }
 }
+var MAXPHOTOS=6;
+function shrink(img){
+  var max=820,sc=Math.min(1,max/Math.max(img.width,img.height));
+  var c=document.createElement("canvas");
+  c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
+  c.getContext("2d").drawImage(img,0,0,c.width,c.height);
+  return c.toDataURL("image/jpeg",0.7);
+}
+function pushPhoto(n,dataURL){
+  var list=photoList(n).slice();
+  if(list.length>=MAXPHOTOS){
+    alert("That house already has "+MAXPHOTOS+" photos — delete one first.");
+    return false;
+  }
+  list.push(dataURL);
+  photos[n]=list;
+  if(!savePhotos()) return false;
+  galleryIdx[n]=list.length-1;
+  refreshThumb(n);
+  if(focused===+n) showFocusPanel(HOUSES.filter(function(x){return x.n===+n;})[0]);
+  return true;
+}
 function addPhoto(n,file){
   var fr=new FileReader();
   fr.onload=function(){
     var img=new Image();
-    img.onload=function(){
-      var max=900,sc=Math.min(1,max/Math.max(img.width,img.height));
-      var c=document.createElement("canvas");
-      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-      photos[n]=c.toDataURL("image/jpeg",0.72);
-      if(savePhotos()){ refreshThumb(n); if(focused===n) showFocusPanel(HOUSES.filter(function(x){return x.n===+n;})[0]); }
-    };
+    img.onload=function(){ pushPhoto(n,shrink(img)); };
+    img.onerror=function(){ alert("That file could not be read as an image."); };
     img.src=fr.result;
   };
   fr.readAsDataURL(file);
+}
+var galleryIdx={};
+function deletePhoto(n,i){
+  var list=photoList(n).slice();
+  list.splice(i,1);
+  if(list.length) photos[n]=list; else delete photos[n];
+  savePhotos();
+  galleryIdx[n]=Math.max(0,Math.min(i,list.length-1));
+  refreshThumb(n);
+  if(focused===+n) showFocusPanel(HOUSES.filter(function(x){return x.n===+n;})[0]);
 }
 function refreshThumb(n){
   var t=document.querySelector('[data-thumb="'+n+'"]');
   if(!t) return;
   var h=HOUSES.filter(function(x){return x.n===+n;})[0];
-  t.querySelectorAll("img,svg").forEach(function(e){ e.remove(); });
+  t.querySelectorAll("img,svg,.pcount").forEach(function(e){ e.remove(); });
   t.insertAdjacentHTML("afterbegin",hoodSVG(n,168,190));
-  var url=photoURL(h,300,300);
+  var list=photoList(n), url=photoURL(h,300,300);
   if(url){
     var im=new Image();
     im.onload=function(){ var s=t.querySelector("svg"); if(s) s.remove(); t.insertAdjacentElement("afterbegin",im); };
     im.alt=""; im.src=url;
   }
-  t.classList.toggle("has-photo",!!photos[n]);
+  if(list.length>1) t.insertAdjacentHTML("beforeend",'<span class="pcount">'+list.length+' photos</span>');
+  t.classList.toggle("has-photo",list.length>0);
 }
 
 /* ================= list ================= */
@@ -1141,11 +1188,13 @@ function cardHTML(h){
   if(sum) sum.innerHTML='<b>'+R.min+' min</b> driving &middot; '+R.mi+' mi';
 });
 document.querySelectorAll("[data-thumb]").forEach(function(t){
-  var n=t.dataset.thumb,h=HOUSES.filter(function(x){return x.n===+n;})[0];
-  t.insertAdjacentHTML("afterbegin",hoodSVG(n,168,190));
-  var img=new Image();
-  img.onload=function(){ var s=t.querySelector("svg"); if(s) s.remove(); t.insertAdjacentElement("afterbegin",img); };
-  img.alt=""; img.src = photoURL(h,200,200) || ("houses/"+n+".jpg");
+  var n=t.dataset.thumb;
+  refreshThumb(n);
+  if(!photoList(n).length){                       /* fall back to a committed file */
+    var img=new Image();
+    img.onload=function(){ var s=t.querySelector("svg"); if(s) s.remove(); t.insertAdjacentElement("afterbegin",img); };
+    img.alt=""; img.src="houses/"+n+".jpg";
+  }
 });
 
 daysBox.addEventListener("click",function(e){
@@ -1179,9 +1228,11 @@ var fileInput=document.createElement("input");
 fileInput.type="file"; fileInput.accept="image/*"; fileInput.style.display="none";
 document.body.appendChild(fileInput);
 var pickFor=null;
-function pickPhoto(n){
-  if(photos[n] && !confirm("Replace the photo on #"+n+"?")){ return; }
-  pickFor=n; fileInput.value=""; fileInput.click();
+function pickPhoto(n){ pickFor=n; fileInput.value=""; fileInput.click(); }
+function pastePhotoURL(n){
+  var url=prompt("Paste the image address for #"+n+"\n\nOn the listing: right-click the photo → Copy image address.");
+  if(url && /^https?:\/\//i.test(url.trim())) addPhotoFromURL(n,url.trim());
+  else if(url) alert("That does not look like an image address.");
 }
 fileInput.addEventListener("change",function(){
   if(fileInput.files&&fileInput.files[0]&&pickFor!=null) addPhoto(pickFor,fileInput.files[0]);
@@ -1201,6 +1252,8 @@ daysBox.addEventListener("drop",function(e){
   if(f&&/^image\//.test(f.type)) addPhoto(+t.dataset.thumb,f);
 });
 addEventListener("paste",function(e){
+  var t=e.target;
+  if(t && (t.tagName==="TEXTAREA"||t.tagName==="INPUT"||t.isContentEditable)) return;  /* typing wins */
   var target = focused!==null ? focused : selected;
   if(target===null||target===undefined) return;
   var cd=e.clipboardData; if(!cd) return;
@@ -1216,21 +1269,15 @@ function addPhotoFromURL(n,url){
   var img=new Image();
   img.crossOrigin="anonymous";
   img.onload=function(){
-    try{
-      var max=900,sc=Math.min(1,max/Math.max(img.width,img.height));
-      var c=document.createElement("canvas");
-      c.width=Math.round(img.width*sc); c.height=Math.round(img.height*sc);
-      c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-      photos[n]=c.toDataURL("image/jpeg",0.72);
-    }catch(err){
-      photos[n]=url;   /* host blocks canvas reads — keep the link instead */
-    }
-    if(savePhotos()){ refreshThumb(n); if(focused===n) showFocusPanel(HOUSES.filter(function(x){return x.n===+n;})[0]); }
+    var data;
+    try{ data=shrink(img); }
+    catch(err){ data=url; }        /* host blocks canvas reads — keep the link */
+    pushPhoto(n,data);
   };
   img.onerror=function(){
     var plain=new Image();
-    plain.onload=function(){ photos[n]=url; if(savePhotos()){ refreshThumb(n); } };
-    plain.onerror=function(){ alert("That link did not load as an image. Save the photo to your computer and drag it onto the card instead."); };
+    plain.onload=function(){ pushPhoto(n,url); };
+    plain.onerror=function(){ alert("That link did not load as an image.\n\nOn the listing, use right-click → Copy image address (not Copy link address), or save the photo and drag it onto the card."); };
     plain.src=url;
   };
   img.src=url;
@@ -1399,14 +1446,28 @@ function exitFocus(){
 }
 function showFocusPanel(h){
   var R=EROUTES[String(h.n)], e=ERR[h.n];
-  var url=photoURL(h,560,320);
+  var list=photoList(h.n), sv=(!list.length && MAPS_KEY) ? photoURL(h,560,320) : null;
+  var idx=Math.min(galleryIdx[h.n]||0,Math.max(0,list.length-1));
+  galleryIdx[h.n]=idx;
+  var shot = list.length ? list[idx] : sv;
   var pane=document.getElementById("focusPanel");
   pane.innerHTML=
     '<div class="fp-img">'+hoodSVG(h.n,560,300)+
-      (url?'<img alt="" src="'+url+'" onerror="this.remove()">':'')+
+      (shot?'<img alt="" src="'+shot+'" onerror="this.remove()">':'')+
       '<button class="fp-x" id="fpClose" aria-label="Close">&times;</button>'+
-      '<button class="fp-cam" data-photo="'+h.n+'">'+
-        '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11m0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7"/></svg> Add photo</button>'+
+      (list.length>1?
+        '<button class="fp-nav prev" id="fpPrev" aria-label="Previous photo">&#8249;</button>'+
+        '<button class="fp-nav next" id="fpNext" aria-label="Next photo">&#8250;</button>'+
+        '<span class="fp-dots">'+list.map(function(_,i){
+            return '<i class="'+(i===idx?"on":"")+'" data-dot="'+i+'"></i>'; }).join("")+'</span>':"")+
+      (list.length?'<button class="fp-del" id="fpDel" title="Remove this photo" aria-label="Remove this photo">'+
+        '<svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/></svg></button>':"")+
+      '<span class="fp-tools">'+
+        '<button class="fp-cam" data-photo="'+h.n+'">'+
+          '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3zm3 5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11m0 2a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7"/></svg>'+
+          (list.length?"Add":"Add photo")+'</button>'+
+        '<button class="fp-cam" id="fpLink">Paste link</button>'+
+      '</span>'+
     '</div>'+
     '<div class="fp-body">'+
       '<div class="fp-h"><span class="fp-n" style="background:var(--'+h.day+')">'+h.n+'</span>'+
@@ -1432,8 +1493,34 @@ function showFocusPanel(h){
   document.getElementById("fpClose").onclick=exitFocus;
   document.getElementById("fpBack").onclick=function(){ exitFocus(); fit(); };
   pane.querySelector("[data-photo]").onclick=function(){ pickPhoto(h.n); };
+  document.getElementById("fpLink").onclick=function(){ pastePhotoURL(h.n); };
+  var del=document.getElementById("fpDel");
+  if(del) del.onclick=function(){ if(confirm("Remove this photo?")) deletePhoto(h.n,galleryIdx[h.n]||0); };
+  function step(d){
+    var l=photoList(h.n).length; if(l<2) return;
+    galleryIdx[h.n]=((galleryIdx[h.n]||0)+d+l)%l;
+    showFocusPanel(h);
+  }
+  var pv=document.getElementById("fpPrev"), nx=document.getElementById("fpNext");
+  if(pv) pv.onclick=function(){ step(-1); };
+  if(nx) nx.onclick=function(){ step(1); };
+  pane.querySelectorAll("[data-dot]").forEach(function(d){
+    d.onclick=function(){ galleryIdx[h.n]=+d.dataset.dot; showFocusPanel(h); };
+  });
+  var im=pane.querySelector(".fp-img img");
+  if(im && photoList(h.n).length>1) im.onclick=function(){ step(1); };
 }
-addEventListener("keydown",function(e){ if(e.key==="Escape") exitFocus(); });
+addEventListener("keydown",function(e){
+  if(e.key==="Escape"){ exitFocus(); return; }
+  if(focused===null) return;
+  var t=e.target;
+  if(t&&(t.tagName==="TEXTAREA"||t.tagName==="INPUT")) return;
+  if(e.key==="ArrowLeft"||e.key==="ArrowRight"){
+    var l=photoList(focused).length; if(l<2) return;
+    galleryIdx[focused]=((galleryIdx[focused]||0)+(e.key==="ArrowRight"?1:-1)+l)%l;
+    showFocusPanel(HOUSES.filter(function(x){return x.n===focused;})[0]);
+  }
+});
 pinNodes.forEach(function(p){
   p.g.addEventListener("click",function(e){
     if(drag&&drag.moved) return;
