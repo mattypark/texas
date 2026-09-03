@@ -1,5 +1,6 @@
 /**
- * Shared trip state: who has seen which house, everyone's rating, verdicts, notes.
+ * Shared trip state: who has seen which house, everyone's ratings before and after
+ * the showing, prices and notes.
  *
  * One JSON document in the same Vercel Blob store the photos use. Every field is
  * stored as { v: value, t: timestamp }, so two people editing different things at the
@@ -34,6 +35,8 @@ async function writeState(state) {
   });
 }
 
+const PERSON_MAPS = new Set(['r', 'rpost']);   // before-the-showing and after-the-showing ratings
+
 /** newest timestamp wins, field by field */
 function mergeField(mine, theirs) {
   if (!mine) return theirs;
@@ -44,12 +47,12 @@ function mergeField(mine, theirs) {
 function mergeHouse(a = {}, b = {}) {
   const out = { ...a };
   for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
-    if (key === 'r') {
-      const ratings = { ...(a.r || {}) };
-      for (const person of Object.keys(b.r || {})) {
-        ratings[person] = mergeField(ratings[person], b.r[person]);
+    if (PERSON_MAPS.has(key)) {
+      const ratings = { ...(a[key] || {}) };
+      for (const person of Object.keys(b[key] || {})) {
+        ratings[person] = mergeField(ratings[person], b[key][person]);
       }
-      out.r = ratings;
+      out[key] = ratings;
     } else {
       out[key] = mergeField(a[key], b[key]);
     }

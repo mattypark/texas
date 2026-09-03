@@ -100,10 +100,12 @@ npx serve public          # or: python3 -m http.server -d public 8000
 
 ## Ratings, prices and sync
 
-Five people rate every house 1–5: Andrew, Matthew, Uria, Sam and Mhiwa. Pick your name
-in **Rating as** in the left panel, then tap stars on any card or in the house detail.
-Each card shows your stars plus the group average and who gave what; the detail panel
-lists all five. Asking prices are editable on any card — click the price (or *Add
+Five people rate every house 1–5 **twice**: once from the listing (*before*, gold) and
+once after walking through (*after*, blue). Pick your name in **Rating as** in the left
+panel, then tap either row of stars on a card or in the house detail. Cards show both
+group averages with the swing between them — `4.0 → 4.7 +0.7` in green when a house
+beat expectations, red when it disappointed. The detail panel lists every person's
+before → after so you can see who changed their mind. Asking prices are editable on any card — click the price (or *Add
 price*) and type it once.
 
 Everything the five of you touch — visited ticks and times, ratings, prices, notes —

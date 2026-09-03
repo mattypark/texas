@@ -411,7 +411,20 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
 .stars.sm .star svg{width:12px;height:12px}
 .stars:hover .star{color:var(--ui-3)}
 .stars:hover .star:hover,.stars .star:hover ~ .star{}
-.grouprate{display:inline-flex;align-items:center;gap:5px;margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.phlabel{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+.phlabel.after{margin-left:8px}
+.stars.ph-post .star.on{color:#1A73E8}
+.stars.ph-post .star:hover{color:#1A73E8}
+.hc-acts.verdicts{flex-wrap:wrap;gap:4px 6px}
+.grouprate{display:inline-flex;align-items:center;gap:4px;margin-left:auto;font-size:11.5px;color:var(--ink-2)}
+.grouprate .ph{font-family:"Roboto Mono",monospace;font-style:normal;font-size:12px;color:var(--ink);
+  border-radius:5px;padding:0 5px;background:var(--ui-2)}
+.grouprate .ph.post{background:color-mix(in srgb,var(--blue) 14%,transparent);color:var(--blue)}
+.grouprate .ph.post.up{background:color-mix(in srgb,var(--green-ui) 16%,transparent);color:var(--green-ui)}
+.grouprate .ph.post.down{background:color-mix(in srgb,var(--red) 14%,transparent);color:var(--red)}
+.grouprate .arrow{opacity:.45}
+.grouprate .delta{font-style:normal;font-size:10.5px;font-weight:500}
+.grouprate .delta.up{color:var(--green-ui)} .grouprate .delta.down{color:var(--red)}
 .grouprate b{font-family:"Roboto Mono",monospace;color:var(--ink);font-size:12.5px}
 .grouprate.none{color:var(--ink-3);font-style:normal}
 .grouprate .who{
@@ -432,7 +445,8 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
 
 .fp-price{margin-left:auto}
 .fp-rate{border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 0;margin:0 0 10px}
-.fp-rate-me{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.fp-rate-me{display:flex;align-items:center;gap:10px;margin-bottom:5px;flex-wrap:wrap}
+.fp-rate-me .lbl-sm{min-width:98px}
 .fp-rate-me .lbl-sm{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3)}
 .fp-rate-all{display:flex;flex-wrap:wrap;gap:6px}
 .pr{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);
@@ -440,6 +454,9 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
 .pr i{width:17px;height:17px;border-radius:99px;display:grid;place-items:center;font-size:9.5px;font-weight:700;
   color:#fff;font-style:normal;background:hsl(calc(var(--i) * 67 + 12) 62% 45%)}
 .pr b{font-family:"Roboto Mono",monospace;color:var(--ink)}
+.pr em{font-style:normal;color:var(--ink-3);font-size:10px;margin:0 1px}
+.pr em.up{color:var(--green-ui)} .pr em.down{color:var(--red)}
+.afterhint{font-size:11px;color:var(--ink-3)}
 .pr.empty{opacity:.55}
 .pr.you{border-color:var(--blue)}
 .pr.avg{background:var(--ui-2);border-color:transparent;padding-left:8px}
@@ -835,21 +852,31 @@ function setField(n,k,v){
   house(n)[k]={v:v,t:Date.now()};
   saveDoc(); pushSoon();
 }
-function ratingOf(n,person){ var r=house(n).r; var f=r&&r[person]; return f?f.v:0; }
-function setRating(n,person,v){
-  var h=house(n); h.r=h.r||{};
-  h.r[person]={v:v,t:Date.now()};
+/* two rating rounds: "pre" from the listing, "post" after walking through */
+var PHASEKEY={pre:"r",post:"rpost"};
+function ratingOf(n,person,phase){
+  var r=house(n)[PHASEKEY[phase||"pre"]]; var f=r&&r[person]; return f?f.v:0;
+}
+function setRating(n,person,v,phase){
+  var k=PHASEKEY[phase||"pre"], h=house(n);
+  h[k]=h[k]||{};
+  h[k][person]={v:v,t:Date.now()};
   saveDoc(); pushSoon();
 }
-function ratingsFor(n){
-  var r=house(n).r||{}, out=[];
+function ratingsFor(n,phase){
+  var r=house(n)[PHASEKEY[phase||"pre"]]||{}, out=[];
   PEOPLE.forEach(function(p){ if(r[p]&&r[p].v) out.push({who:p,v:r[p].v}); });
   return out;
 }
-function avgRating(n){
-  var rs=ratingsFor(n);
+function avgRating(n,phase){
+  var rs=ratingsFor(n,phase);
   if(!rs.length) return null;
   return rs.reduce(function(a,b){ return a+b.v; },0)/rs.length;
+}
+/* what to show when there is only room for one number */
+function headlineRating(n){
+  var post=avgRating(n,"post");
+  return post!==null ? {v:post,phase:"post"} : (avgRating(n,"pre")!==null?{v:avgRating(n,"pre"),phase:"pre"}:null);
 }
 /* compatibility with the rest of the page */
 function st(n){
@@ -1471,15 +1498,29 @@ function chip(k,n){
   var name = e.b&&BRAND[e.b] ? BRAND[e.b].label : m.label;
   return '<span class="brandchip" title="'+esc(e.n+" — "+e.d+" mi")+'"><span class="mark">'+mark+'</span>'+esc(name)+' <b>'+e.m+'</b></span>';
 }
-function starRow(n,size){
-  var mine=who?ratingOf(n,who):0;
-  var out='<span class="stars'+(size==="s"?" sm":"")+'" data-stars="'+n+'">';
+function starRow(n,phase,size){
+  phase=phase||"pre";
+  var mine=who?ratingOf(n,who,phase):0;
+  var out='<span class="stars'+(size==="s"?" sm":"")+' ph-'+phase+'" data-stars="'+n+'" data-phase="'+phase+'">';
   for(var i=1;i<=5;i++){
-    out+='<button class="star'+(i<=mine?" on":"")+'" data-star="'+i+'" aria-label="'+i+' out of 5">'+
+    out+='<button class="star'+(i<=mine?" on":"")+'" data-star="'+i+'" aria-label="'+i+' out of 5, '+(phase==="pre"?"before":"after")+'">'+
       '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.3 5.8 21l1.6-7L2 9.3l7.1-.6L12 2.2l2.9 6.5 7.1.6-5.4 4.7 1.6 7z"/></svg></button>';
   }
   out+='</span>';
   return out;
+}
+function ratingPair(n){
+  var pre=avgRating(n,"pre"), post=avgRating(n,"post");
+  if(pre===null&&post===null) return '<span class="grouprate none">not rated yet</span>';
+  var delta = (pre!==null&&post!==null) ? post-pre : null;
+  return '<span class="grouprate" title="'+
+    esc("Before: "+(pre!==null?ratingsFor(n,"pre").map(function(r){return r.who+" "+r.v;}).join(", "):"none")+
+        " — After: "+(post!==null?ratingsFor(n,"post").map(function(r){return r.who+" "+r.v;}).join(", "):"none"))+'">'+
+    '<i class="ph pre">'+(pre!==null?pre.toFixed(1):"–")+'</i>'+
+    '<svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" class="arrow"><path d="M4 11h12.2l-4.6-4.6L13 5l7 7-7 7-1.4-1.4 4.6-4.6H4z"/></svg>'+
+    '<i class="ph post'+(delta===null?"":(delta>0?" up":(delta<0?" down":"")))+'">'+(post!==null?post.toFixed(1):"–")+'</i>'+
+    (delta!==null&&delta!==0?'<em class="delta '+(delta>0?"up":"down")+'">'+(delta>0?"+":"")+delta.toFixed(1)+'</em>':'')+
+    '</span>';
 }
 function groupChip(n){
   var rs=ratingsFor(n), avg=avgRating(n);
@@ -1509,7 +1550,11 @@ function cardHTML(h){
            '<a class="chipbtn mute" href="'+h.url+'" target="_blank" rel="noopener">Listing</a>'+
            '<button class="seen-btn"><span class="box"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/></svg></span>Visited</button>'+
          '</div>'+
-         '<div class="hc-acts verdicts">'+starRow(h.n)+groupChip(h.n)+'</div>'+
+         '<div class="hc-acts verdicts">'+
+           '<span class="phlabel">Before</span>'+starRow(h.n,"pre","s")+
+           '<span class="phlabel after">After</span>'+starRow(h.n,"post","s")+
+           ratingPair(h.n)+
+         '</div>'+
          '<div class="stamp" data-stamp="'+h.n+'">'+(s.at?"Visited at "+s.at:"")+'</div>'+
          '<textarea class="note" placeholder="Notes — layout, yard, street noise, what to ask">'+esc(s.note||"")+'</textarea>';
 }
@@ -1584,8 +1629,9 @@ daysBox.addEventListener("click",function(e){
   if(star){
     e.stopPropagation();
     if(!requireMe()) return;
+    var phase=(star.closest("[data-phase]")||{dataset:{}}).dataset.phase||"pre";
     var val=+star.dataset.star;
-    setRating(n, who, ratingOf(n,who)===val ? 0 : val);
+    setRating(n, who, ratingOf(n,who,phase)===val ? 0 : val, phase);
     repaintCard(n);
     if(typeof drawStrip==="function") drawStrip();
     if(focused===n) showFocusPanel(HOUSES.filter(function(x){return x.n===n;})[0]);
@@ -1627,7 +1673,8 @@ function repaintCard(n){
   var stamp=card.querySelector('[data-stamp="'+n+'"]');
   if(stamp) stamp.textContent=s.at?"Visited at "+s.at:"";
   var row=card.querySelector(".verdicts");
-  if(row) row.innerHTML=starRow(n)+groupChip(n);
+  if(row) row.innerHTML='<span class="phlabel">Before</span>'+starRow(n,"pre","s")+
+                        '<span class="phlabel after">After</span>'+starRow(n,"post","s")+ratingPair(n);
   var sub=card.querySelector(".hc-sub");
   if(sub) sub.innerHTML=priceHTML(n)+" &middot; "+esc(h.city)+(h.approx?'<span class="tag">address unconfirmed</span>':'')+(h.hop?" &middot; "+h.hop:"");
   var ta=card.querySelector(".note");
@@ -1710,7 +1757,8 @@ function shortURL(u){
 function showPreview(h,rect){
   var e=ERR[h.n], list=photoList(h.n);
   var shot=list[0]||photoURL(h,300,170);
-  var avg=avgRating(h.n), price=fieldOf(h.n,"price");
+  var head=headlineRating(h.n), price=fieldOf(h.n,"price");
+  var preA=avgRating(h.n,"pre"), postA=avgRating(h.n,"post");
   pv.innerHTML='<div class="pv-map">'+hoodSVG(h.n,300,320)+
       (shot?'<img alt="" src="'+shot+'" onerror="this.remove()">':'')+
       '<span class="pv-cap">'+(list.length?(list.length>1?list.length+" photos":"photo"):"streets within 0.2 mi")+'</span>'+
@@ -1719,11 +1767,13 @@ function showPreview(h,rect){
     '<div class="pv-body">'+
       '<div class="pv-top"><h4>'+esc(h.street)+'</h4>'+(price?'<span class="pv-price">'+esc(price)+'</span>':'')+'</div>'+
       '<div class="pv-sub">'+esc(h.city)+' &middot; '+DAYMETA[h.day].full+', '+DAYMETA[h.day].when+'</div>'+
-      (avg!==null?'<div class="pv-rate">'+
+      (head?'<div class="pv-rate">'+
         '<span class="pv-stars">'+[1,2,3,4,5].map(function(i){
-          return '<svg viewBox="0 0 24 24" class="'+(i<=Math.round(avg)?"on":"")+'" fill="currentColor"><path d="M12 17.3 5.8 21l1.6-7L2 9.3l7.1-.6L12 2.2l2.9 6.5 7.1.6-5.4 4.7 1.6 7z"/></svg>';
-        }).join("")+'</span><b>'+avg.toFixed(1)+'</b>'+
-        '<span class="pv-who">'+ratingsFor(h.n).map(function(r){ return esc(r.who)+" "+r.v; }).join(" · ")+'</span></div>':'')+
+          return '<svg viewBox="0 0 24 24" class="'+(i<=Math.round(head.v)?"on":"")+'" fill="currentColor"><path d="M12 17.3 5.8 21l1.6-7L2 9.3l7.1-.6L12 2.2l2.9 6.5 7.1.6-5.4 4.7 1.6 7z"/></svg>';
+        }).join("")+'</span><b>'+head.v.toFixed(1)+'</b>'+
+        '<span class="pv-who">'+(postA!==null&&preA!==null
+            ? "before "+preA.toFixed(1)+" → after "+postA.toFixed(1)
+            : (head.phase==="post"?"after the showing":"before the showing"))+'</span></div>':'')+
       '<div class="pv-grid">'+
         ["costco","grocery","bigbox","park","pharmacy","care"].map(function(k){
           var r=e[k][0];
@@ -1803,6 +1853,10 @@ function drawTable(){
     var va,vb;
     if(sortKey==="n"){ va=a.n; vb=b.n; }
     else if(sortKey==="score"){ va=score(a.n); vb=score(b.n); }
+    else if(sortKey==="rating"){
+      var ra=headlineRating(a.n), rb=headlineRating(b.n);
+      va=ra?-ra.v:99; vb=rb?-rb.v:99;
+    }
     else { va=ERR[a.n][sortKey][0].m; vb=ERR[b.n][sortKey][0].m; }
     return (va-vb)*sortDir;
   });
@@ -1959,13 +2013,22 @@ function showFocusPanel(h){
           esc((h.url.match(/_(M\d+-\d+)/)||["",""])[1]||"open")+'</a>'+
         '</div><span class="fp-price">'+priceHTML(h.n)+'</span></div>'+
       '<div class="fp-rate">'+
-        '<div class="fp-rate-me"><span class="lbl-sm">'+(who?esc(who)+"'s rating":"Your rating")+'</span>'+starRow(h.n)+'</div>'+
+        '<div class="fp-rate-me"><span class="lbl-sm">'+(who?esc(who):"You")+' &middot; before</span>'+starRow(h.n,"pre")+'</div>'+
+        '<div class="fp-rate-me"><span class="lbl-sm">'+(who?esc(who):"You")+' &middot; after</span>'+starRow(h.n,"post")+
+          (st(h.n).seen?"":'<span class="afterhint">rate this once you have walked through</span>')+'</div>'+
         '<div class="fp-rate-all">'+PEOPLE.map(function(p){
-          var v=ratingOf(h.n,p);
-          return '<span class="pr'+(v?"":" empty")+(p===who?" you":"")+'" style="--i:'+PEOPLE.indexOf(p)+'">'+
-                 '<i>'+esc(p[0])+'</i>'+esc(p)+'<b>'+(v?v:"–")+'</b></span>';
+          var a=ratingOf(h.n,p,"pre"), b=ratingOf(h.n,p,"post");
+          var move=(a&&b)?(b>a?" up":(b<a?" down":"")):"";
+          return '<span class="pr'+((a||b)?"":" empty")+(p===who?" you":"")+'" style="--i:'+PEOPLE.indexOf(p)+'">'+
+                 '<i>'+esc(p[0])+'</i>'+esc(p)+
+                 '<b>'+(a?a:"–")+'</b><em class="to'+move+'">&rarr;</em><b>'+(b?b:"–")+'</b></span>';
         }).join("")+
-        (avgRating(h.n)!==null?'<span class="pr avg"><b>'+avgRating(h.n).toFixed(1)+'</b> average</span>':"")+
+        (function(){
+          var pre=avgRating(h.n,"pre"), post=avgRating(h.n,"post");
+          if(pre===null&&post===null) return "";
+          return '<span class="pr avg"><b>'+(pre!==null?pre.toFixed(1):"–")+'</b><em class="to">&rarr;</em><b>'+
+                 (post!==null?post.toFixed(1):"–")+'</b> average</span>';
+        })()+
         '</div>'+
       '</div>'+
       '<div class="fp-runs">'+
@@ -1993,8 +2056,9 @@ function showFocusPanel(h){
   pane.querySelectorAll("[data-star]").forEach(function(b){
     b.onclick=function(){
       if(!requireMe()) return;
+      var phase=(b.closest("[data-phase]")||{dataset:{}}).dataset.phase||"pre";
       var val=+b.dataset.star;
-      setRating(h.n, who, ratingOf(h.n,who)===val?0:val);
+      setRating(h.n, who, ratingOf(h.n,who,phase)===val?0:val, phase);
       showFocusPanel(h); repaintCard(h.n); if(typeof drawStrip==="function") drawStrip();
     };
   });
@@ -2111,10 +2175,13 @@ document.getElementById("copy").onclick=function(){
     out.push(DAYMETA[day].full);
     HOUSES.filter(function(h){return h.day===day;}).forEach(function(h){
       var s=st(h.n);
-      var rs=ratingsFor(h.n), avg=avgRating(h.n), pr=fieldOf(h.n,"price");
+      var pre=avgRating(h.n,"pre"), post=avgRating(h.n,"post"), pr=fieldOf(h.n,"price");
+      function byWho(ph){ return ratingsFor(h.n,ph).map(function(r){ return r.who+" "+r.v; }).join(", "); }
       out.push("  #"+h.n+" "+h.street+(pr?"  "+pr:"")+
         "  ["+(s.seen?"visited"+(s.at?" "+s.at:""):"not visited")+"]"+
-        (avg!==null?"  avg "+avg.toFixed(1)+" ("+rs.map(function(r){return r.who+" "+r.v;}).join(", ")+")":"  unrated")+
+        (pre!==null?"\n      before "+pre.toFixed(1)+" ("+byWho("pre")+")":"")+
+        (post!==null?"\n      after  "+post.toFixed(1)+" ("+byWho("post")+")":"")+
+        (pre===null&&post===null?"  unrated":"")+
         (s.note?"\n      "+s.note:""));
     });
     out.push("");
@@ -2245,7 +2312,8 @@ function drawStrip(){
       '<span class="ht-img" data-tilethumb="'+h.n+'"><span class="ht-n">'+h.n+'</span></span>'+
       '<b>'+esc(h.street)+'</b>'+
       '<span class="ht-sub">'+(fieldOf(h.n,"price")?esc(fieldOf(h.n,"price"))+" · ":"")+DAYMETA[h.day].full+
-        (avgRating(h.n)!==null?' · ★'+avgRating(h.n).toFixed(1):"")+(s.at?" · seen "+s.at:"")+'</span>'+
+        (headlineRating(h.n)?' · ★'+headlineRating(h.n).v.toFixed(1)+(headlineRating(h.n).phase==="post"?" after":""):"")+
+        (s.at?" · seen "+s.at:"")+'</span>'+
       '<span class="ht-runs">'+ERRSHORT.map(function(c){
         return '<span style="--c2:'+c[2]+'"><i></i>'+e[c[0]][0].m+'</span>';
       }).join("")+'</span>'+
