@@ -15,6 +15,9 @@ Keller and Haslet over Labor Day weekend 2026.
   asking price, the group rating and who gave what, six errand times and the listing.
   Without a photo it falls back to a drawing of that block, built from real street and
   building footprints.
+- **Home base** — the hotel at 1711 W Royal Ln, Irving sits on the map with its own
+  layer, a route to each day's first stop (30 / 33 / 35 min), and its drive time on
+  every house card. The houses run 30–38 minutes out.
 - **The whole weekend, not just the houses** — Saturday's showings run into the TCU
   campus walk at 4pm and the End of Summer Bash on Locke Ave from 5 to 8, with the
   drive legs between them and the RSVP number. Both appear on the map on the Saturday
