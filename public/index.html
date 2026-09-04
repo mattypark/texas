@@ -46,7 +46,8 @@ h1,h2,h3,h4{margin:0;font-weight:500}
 
 .app{display:flex;height:100vh;height:100dvh;overflow:hidden}
 .mapstage{position:relative;flex:1;min-width:0;background:var(--land)}
-svg.map{display:block;width:100%;height:100%;touch-action:none;cursor:grab;background:var(--land)}
+#mapcanvas{position:absolute;inset:0;display:block;width:100%;height:100%;background:var(--land)}
+svg.map{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none;cursor:grab;background:transparent}
 svg.map.drag{cursor:grabbing}
 
 /* ---------------- left panel ---------------- */
@@ -182,6 +183,11 @@ body.satmode .scalebar i{border-color:#E8EAED}
 .list-head{position:sticky;top:0;background:var(--ui);border-bottom:1px solid var(--line);z-index:3;display:flex;align-items:center;gap:10px;padding:12px 8px 12px 16px}
 .list-head h2{font-size:15px;flex:1}
 .list-head .hint{font-size:12px;color:var(--ink-2)}
+.wxnow{margin-left:auto;display:inline-flex;align-items:baseline;gap:6px;font-size:12px;color:var(--ink-2);white-space:nowrap}
+.wxnow b{font-family:"Roboto Mono",monospace;font-size:15px;font-weight:500;color:var(--ink)}
+.daybar .wx{margin-left:auto;font-size:11.5px;color:var(--ink-2);white-space:nowrap}
+.daybar .wx b{font-family:"Roboto Mono",monospace;color:var(--ink);font-weight:500}
+.wxbash{color:#B26A00}
 .daybar{display:flex;align-items:center;gap:8px;padding:16px 16px 6px}
 .daybar .dot{width:10px;height:10px;border-radius:99px;background:var(--c)}
 .daybar h3{font-size:14px}
@@ -638,6 +644,7 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
       <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M4 6h2v2H4zm0 5h2v2H4zm0 5h2v2H4zM8 6h12v2H8zm0 5h12v2H8zm0 5h12v2H8z"/></svg>
     </button>
     <div class="mapsearch"><svg viewBox="0 0 24 24" width="20" height="20" fill="#80868B"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14"/></svg><span><b>14 houses</b> &middot; 3 driving routes</span></div>
+    <canvas id="mapcanvas" aria-hidden="true"></canvas>
     <svg class="map" id="map" aria-label="Map of the 14 houses"></svg>
     <div id="focusPanel" aria-live="polite"></div>
 
@@ -679,7 +686,7 @@ code{font-family:"Roboto Mono",monospace;font-size:11px;background:var(--ui-2);p
   <div class="list" id="list">
     <div class="list-head">
       <h2>The route, in order</h2>
-      <span class="hint">Hover for a look around</span>
+      <span class="wxnow" id="wxnow" title="Loading the forecast"><b>&mdash;</b><span>Fort Worth</span></span>
       <button class="iconbtn" id="hideList" title="Hide list" aria-label="Hide list">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M8.6 16.6 13.2 12 8.6 7.4 10 6l6 6-6 6z"/></svg>
       </button>
@@ -841,6 +848,7 @@ var ACTICON={"Movies":"movie","Arcade":"arcade","Dog park":"dog","Water park":"w
    document. Each field carries the time it was set, so the server can merge two
    people editing different things without either edit disappearing. */
 var PEOPLE=["Andrew","Matthew","Uria","Sam","Mhiwa"];
+var DAYHEX={sat:"#EA4335",sun:"#1A73E8",mon:"#188038"};
 var KEY="fw-house-run-v3", MEKEY="fw-house-run-me";
 var DOC={houses:{}}, who=null, shareOn=false;
 try{ who=localStorage.getItem(MEKEY)||null; }catch(e){}
@@ -968,90 +976,206 @@ function score(n){ var e=ERR[n],s=0; for(var k in WEIGHT) s+=WEIGHT[k]*e[k][0].m
 
 /* ================= MAP ================= */
 var svg=document.getElementById("map");
-var gTiles=el("g",{}),gPoly=el("g",{}),gCase3=el("g",{}),gFill3=el("g",{}),gCase=el("g",{}),gFill=el("g",{}),
-    gRoute=el("g",{}),gPoi=el("g",{}),gLbl=el("g",{}),gPins=el("g",{}),gMe=el("g",{});
-[gTiles,gPoly,gCase3,gFill3,gCase,gFill,gRoute,gPoi,gLbl,gPins,gMe].forEach(function(g){ svg.appendChild(g); });
+var cvs=document.getElementById("mapcanvas"), ctx=cvs.getContext("2d",{alpha:false});
+var gLbl=el("g",{}),gPoi=el("g",{}),gPins=el("g",{}),gMe=el("g",{});
+[gLbl,gPoi,gPins,gMe].forEach(function(g){ svg.appendChild(g); });
 
-/* Raster basemaps. Free, no API key, attribution required — Esri for imagery and
-   hillshade. They are plain <image> tiles, so if a host blocks third-party images
-   the vector map underneath still renders. */
+/* ------------------------------------------------------------------
+   Geometry is decoded once into flat typed arrays and painted on a
+   canvas. Twenty-odd thousand road segments as SVG nodes cost a full
+   re-rasterise on every zoom step; on canvas the same frame is a few
+   milliseconds of drawing.
+------------------------------------------------------------------ */
+function decodeDeltas(lat,lon,d){
+  var n=d.length/2+1, pts=new Float32Array(n*2), i, k=0;
+  pts[k++]=px(lon/1e5); pts[k++]=py(lat/1e5);
+  for(i=0;i<d.length;i+=2){
+    lat+=d[i]; lon+=d[i+1];
+    pts[k++]=px(lon/1e5); pts[k++]=py(lat/1e5);
+  }
+  return pts;
+}
+function bboxOf(pts){
+  var x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(var i=0;i<pts.length;i+=2){
+    var x=pts[i],y=pts[i+1];
+    if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y;
+  }
+  return [x0,y0,x1,y1];
+}
+var POLYG=[], ROADG=[[],[],[],[]], LABELS=[], labelSpots={};
+POLY.forEach(function(p){
+  var pts=decodeDeltas(p[1],p[2],p[3]);
+  POLYG.push({k:p[0],pts:pts,bb:bboxOf(pts)});
+});
+(function(){
+  var RNAMES=ROADS.n;
+  ROADS.w.forEach(function(r){
+    var cls=r[0], pts=decodeDeltas(r[2],r[3],r[4]);
+    ROADG[cls].push({pts:pts,bb:bboxOf(pts)});
+    var ref=r[1]<0?"":RNAMES[r[1]];
+    if(ref && !labelSpots[ref] && pts.length>12){
+      var m=(pts.length>>2)<<1;
+      labelSpots[ref]=[pts[m],pts[m+1]];
+    }
+  });
+})();
+[["Haslet",32.9700,-97.3450],["Keller",32.9330,-97.2400],["Fort Worth",32.8900,-97.3700],
+ ["Roanoke",33.0050,-97.2260],["Alliance",32.9080,-97.3140],["Irving",32.9010,-96.9880]]
+.forEach(function(c){
+  var t=el("text",{x:px(c[2]),y:py(c[1]),class:"lbl city","text-anchor":"middle"});
+  t.textContent=c[0].toUpperCase(); gLbl.appendChild(t);
+});
+["I 35W","US 81;US 287","TX 170","TX 114","FM 156","FM 1709","US 377","North Tarrant Parkway",
+ "Heritage Trace Parkway","Golden Triangle Boulevard","Basswood Boulevard","Alliance Gateway Freeway",
+ "I 820","I 30","TX 121","TX 183","TX 161","I 635","TX 360"]
+.forEach(function(ref){
+  var m=labelSpots[ref]; if(!m) return;
+  var pretty=ref.replace("US 81;US 287","US 287").replace(/^I /,"I-").replace(/^TX /,"TX-")
+    .replace("Boulevard","Blvd").replace("Parkway","Pkwy").replace("Freeway","Fwy");
+  var t=el("text",{x:m[0],y:m[1]-5,class:"lbl","text-anchor":"middle"});
+  t.textContent=pretty; gLbl.appendChild(t);
+});
+
+/* route polylines, all painted on the same canvas */
+var ROUTELINES=[];
+function addRoute(enc,color,dash,width,key){
+  var pts=decodeDeltas(enc.lat,enc.lon,enc.d);
+  ROUTELINES.push({pts:pts,bb:bboxOf(pts),color:color,dash:dash,w:width,key:key,on:true});
+}
+["sat","sun","mon"].forEach(function(day){ addRoute(ROUTES[day],DAYHEX[day],null,5,"day:"+day); });
+["sat","sun","mon"].forEach(function(day){ addRoute(HOTEL.routes[day],"#0B8043",[1,13],5,"hotel:"+day); });
+["h5_tcu","tcu_bash"].forEach(function(k){ if(PLANRT[k]) addRoute(PLANRT[k],"#7B45C4",[1,11],5,"plan"); });
+var errandLines=[];
+
+/* tiles */
 var TILESETS={
   satellite:{url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
              max:19,attrib:"Imagery © Esri, Maxar, Earthstar Geographics"},
   terrain:{url:"https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
              max:16,attrib:"Hillshade © Esri, USGS"}
 };
-var tileCache={};
-function drawTiles(){
+var tileCache={}, tileOrder=[];
+function tileFor(url){
+  var t=tileCache[url];
+  if(t) return t;
+  var img=new Image();
+  img.crossOrigin="anonymous";
+  img.onload=function(){ img.ok=true; scheduleRender(); };
+  img.onerror=function(){ img.bad=true; };
+  img.src=url;
+  tileCache[url]=img; tileOrder.push(url);
+  if(tileOrder.length>420){ var old=tileOrder.shift(); delete tileCache[old]; }
+  return img;
+}
+function drawTiles(s){
   var set=TILESETS[mapStyle];
-  if(!set){ gTiles.innerHTML=""; return; }
+  if(!set) return;
   var z=Math.round(Math.log2(WORLD/view.w*SZ.w/256));
   z=Math.max(4,Math.min(set.max,z));
   var n=Math.pow(2,z), size=WORLD/n;
   var wx0=view.x+OX, wy0=view.y+OY;
   var x0=Math.floor(wx0/size), x1=Math.floor((wx0+view.w)/size);
   var y0=Math.floor(wy0/size), y1=Math.floor((wy0+view.h)/size);
-  var want={},frag=document.createDocumentFragment(),made=false;
+  ctx.imageSmoothingEnabled=true;
   for(var ty=y0;ty<=y1;ty++){
     for(var tx=x0;tx<=x1;tx++){
       if(tx<0||ty<0||tx>=n||ty>=n) continue;
-      var key=mapStyle+"/"+z+"/"+tx+"/"+ty;
-      want[key]=1;
-      if(tileCache[key]) continue;
-      var img=el("image",{x:tx*size-OX,y:ty*size-OY,width:size+1,height:size+1,
-        href:set.url.replace("{z}",z).replace("{x}",tx).replace("{y}",ty),
-        preserveAspectRatio:"none"});
-      img.setAttributeNS("http://www.w3.org/1999/xlink","xlink:href",img.getAttribute("href"));
-      tileCache[key]=img; frag.appendChild(img); made=true;
+      var img=tileFor(set.url.replace("{z}",z).replace("{x}",tx).replace("{y}",ty));
+      if(!img.ok) continue;
+      ctx.drawImage(img,(tx*size-OX-view.x)*s,(ty*size-OY-view.y)*s,size*s+1,size*s+1);
     }
   }
-  if(made) gTiles.appendChild(frag);
-  Object.keys(tileCache).forEach(function(k){
-    var keep=want[k];
-    if(!keep && tileCache[k].parentNode){ tileCache[k].parentNode.removeChild(tileCache[k]); delete tileCache[k]; }
-  });
 }
 
-POLY.forEach(function(p){
-  var lat=p[1],lon=p[2],d=p[3],pts=[[lat/1e5,lon/1e5]];
-  for(var i=0;i<d.length;i+=2){ lat+=d[i]; lon+=d[i+1]; pts.push([lat/1e5,lon/1e5]); }
-  var s="M";
-  for(var j=0;j<pts.length;j++) s+=(j?"L":"")+px(pts[j][1]).toFixed(0)+" "+py(pts[j][0]).toFixed(0);
-  gPoly.appendChild(el("path",{d:s+"Z",class:"p-"+p[0]}));
-});
-var W={0:[13,9],1:[7,5],2:[3.4,2.2],3:[2.0,1.2]};
-var labelSpots={}, RNAMES=ROADS.n;
-ROADS.w.forEach(function(r){
-  var cls=r[0],ref=r[1]<0?"":RNAMES[r[1]],lat=r[2],lon=r[3],d=r[4],pts=[[lat/1e5,lon/1e5]];
-  for(var i=0;i<d.length;i+=2){ lat+=d[i]; lon+=d[i+1]; pts.push([lat/1e5,lon/1e5]); }
-  var s="M";
-  for(var j=0;j<pts.length;j++) s+=(j?"L":"")+px(pts[j][1]).toFixed(1)+" "+py(pts[j][0]).toFixed(1);
-  var tgtC = cls===3 ? gCase3 : gCase, tgtF = cls===3 ? gFill3 : gFill;
-  var kc=cls===3?"g3":("g"+cls);
-  tgtC.appendChild(el("path",{d:s,class:"rd rc"+(cls===3?2:cls)+" "+kc+"c",}));
-  tgtF.appendChild(el("path",{d:s,class:"rd rf"+(cls===3?2:cls)+" "+kc+"f",}));
-  if(ref && !labelSpots[ref] && pts.length>6) labelSpots[ref]=pts[Math.floor(pts.length/2)];
-});
-[["Haslet",32.9700,-97.3450],["Keller",32.9330,-97.2400],["Fort Worth",32.8900,-97.3700],["Roanoke",33.0050,-97.2260],["Alliance",32.9080,-97.3140]]
-.forEach(function(c){
-  var t=el("text",{x:px(c[2]),y:py(c[1]),class:"lbl city","text-anchor":"middle"});
-  t.textContent=c[0].toUpperCase(); gLbl.appendChild(t);
-});
-["I 35W","US 81;US 287","TX 170","TX 114","FM 156","FM 1709","US 377","North Tarrant Parkway","Heritage Trace Parkway","Golden Triangle Boulevard","Basswood Boulevard","Alliance Gateway Freeway"]
-.forEach(function(ref){
-  var m=labelSpots[ref]; if(!m) return;
-  var pretty=ref.replace("US 81;US 287","US 287").replace("I 35W","I-35W").replace(/^TX /,"TX-")
-    .replace("Boulevard","Blvd").replace("Parkway","Pkwy").replace("Freeway","Fwy");
-  var t=el("text",{x:px(m[1]),y:py(m[0])-5,class:"lbl","text-anchor":"middle"});
-  t.textContent=pretty; gLbl.appendChild(t);
-});
-
+function strokeSet(list,s,width,color,dash){
+  if(width<=0) return;
+  ctx.beginPath();
+  var vx0=view.x, vy0=view.y, vx1=view.x+view.w, vy1=view.y+view.h;
+  for(var i=0;i<list.length;i++){
+    var it=list[i], bb=it.bb;
+    if(bb[2]<vx0||bb[0]>vx1||bb[3]<vy0||bb[1]>vy1) continue;   /* off screen */
+    var p=it.pts;
+    ctx.moveTo((p[0]-vx0)*s,(p[1]-vy0)*s);
+    for(var k=2;k<p.length;k+=2) ctx.lineTo((p[k]-vx0)*s,(p[k+1]-vy0)*s);
+  }
+  ctx.lineWidth=width; ctx.strokeStyle=color;
+  ctx.lineCap="round"; ctx.lineJoin="round";
+  if(dash) ctx.setLineDash(dash.map(function(v){ return v*width; })); else ctx.setLineDash([]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+function fillSet(list,s,color,klass){
+  ctx.beginPath();
+  var vx0=view.x, vy0=view.y, vx1=view.x+view.w, vy1=view.y+view.h, drew=false;
+  for(var i=0;i<list.length;i++){
+    var it=list[i];
+    if(it.k!==klass) continue;
+    var bb=it.bb;
+    if(bb[2]<vx0||bb[0]>vx1||bb[3]<vy0||bb[1]>vy1) continue;
+    var p=it.pts;
+    ctx.moveTo((p[0]-vx0)*s,(p[1]-vy0)*s);
+    for(var k=2;k<p.length;k+=2) ctx.lineTo((p[k]-vx0)*s,(p[k+1]-vy0)*s);
+    ctx.closePath(); drew=true;
+  }
+  if(drew){ ctx.fillStyle=color; ctx.fill(); }
+}
+var CSSVAR={};
+function readColors(){
+  var cs=getComputedStyle(document.documentElement);
+  ["--land","--water","--green","--green-2","--airport","--rd-motor","--rd-motor-case",
+   "--rd-major","--rd-major-case","--rd-minor","--rd-minor-case"].forEach(function(k){
+    CSSVAR[k]=cs.getPropertyValue(k).trim();
+  });
+}
+function paintMap(){
+  var s=SZ.w/view.w;                       /* screen px per map unit */
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cvs.width!==Math.round(SZ.w*dpr)||cvs.height!==Math.round(SZ.h*dpr)){
+    cvs.width=Math.round(SZ.w*dpr); cvs.height=Math.round(SZ.h*dpr);
+    cvs.style.width=SZ.w+"px"; cvs.style.height=SZ.h+"px";
+  }
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle=CSSVAR["--land"]||"#F1F3F4";
+  ctx.fillRect(0,0,SZ.w,SZ.h);
+  var sat=mapStyle==="satellite";
+  drawTiles(s);
+  if(layers.green && !sat && mapStyle!=="clean"){
+    fillSet(POLYG,s,CSSVAR["--airport"],"a");
+    fillSet(POLYG,s,CSSVAR["--green"],"g");
+    fillSet(POLYG,s,CSSVAR["--green-2"],"p");
+    fillSet(POLYG,s,CSSVAR["--water"],"w");
+  }
+  var mPerPx=s?(metersPerUnit(32.93)/s):1;
+  mPerPx=metersPerUnit(32.93)/s;
+  var f=Math.max(1,Math.min(4.2,14/Math.max(mPerPx,0.6)));
+  var showRes=mPerPx<9;
+  var alpha=sat?0.55:1;
+  ctx.globalAlpha=alpha;
+  /* casings first, then fills, so junctions look continuous */
+  if(showRes) strokeSet(ROADG[3],s,2.6*Math.min(f,3.4),CSSVAR["--rd-minor-case"]);
+  strokeSet(ROADG[2],s,3.4*f,CSSVAR["--rd-minor-case"]);
+  strokeSet(ROADG[1],s,7*Math.min(f,2.6),CSSVAR["--rd-major-case"]);
+  strokeSet(ROADG[0],s,13*Math.min(f,2.2),CSSVAR["--rd-motor-case"]);
+  ctx.globalAlpha=sat?0.8:1;
+  if(showRes) strokeSet(ROADG[3],s,1.6*Math.min(f,3.4),CSSVAR["--rd-minor"]);
+  strokeSet(ROADG[2],s,2.2*f,CSSVAR["--rd-minor"]);
+  strokeSet(ROADG[1],s,5*Math.min(f,2.6),CSSVAR["--rd-major"]);
+  strokeSet(ROADG[0],s,9*Math.min(f,2.2),CSSVAR["--rd-motor"]);
+  ctx.globalAlpha=1;
+  if(layers.routes){
+    var lines=ROUTELINES.filter(function(r){ return r.on; }).concat(errandLines);
+    lines.forEach(function(r){
+      strokeSet([r],s,r.w+4,"#ffffff");
+      strokeSet([r],s,r.w,r.color,r.dash);
+    });
+  }
+  return {s:s,mPerPx:mPerPx,showRes:showRes};
+}
 /* named places — the McDonald's / Starbucks / school layer that appears as you zoom in */
 var POICOLOR={ff:"#E8710A",rest:"#E8710A",cafe:"#8B5E3C",bar:"#9334E6",fuel:"#5F6368",bank:"#1A73E8",
   rx:"#D93025",care:"#D93025",school:"#1967D2",lib:"#1967D2",wor:"#7B45C4",movie:"#7B45C4",
   park:"#188038",gym:"#188038",grocery:"#1A73E8",shop:"#5F6368"};
-var POIICON={ff:"fork",rest:"fork",cafe:"fork",bar:"fork",fuel:"fuel",bank:"store",rx:"cross",care:"cross",
-  school:"museum",lib:"museum",wor:"museum",movie:"movie",park:"tree",gym:"tramp",grocery:"cart",shop:"store"};
 var poiNodes=[];
 POIS.forEach(function(p){
   var lat=p[2]/1e5, lon=p[3]/1e5, col=POICOLOR[p[0]]||"#5F6368";
@@ -1070,57 +1194,18 @@ POIS.forEach(function(p){
   poiNodes.push({g:g,lat:lat,lon:lon,cat:p[0]});
 });
 
-/* real driving routes */
-var routePaths={};
-["sat","sun","mon"].forEach(function(day){
-  var R=ROUTES[day],lat=R.lat,lon=R.lon,d=R.d,s="M"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1);
-  for(var i=0;i<d.length;i+=2){ lat+=d[i]; lon+=d[i+1]; s+="L"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1); }
-  var g=el("g",{});
-  g.appendChild(el("path",{d:s,class:"routeline case rtc"}));
-  g.appendChild(el("path",{d:s,class:"routeline rtf",stroke:"var(--"+day+")","stroke-opacity":".9"}));
-  gRoute.appendChild(g); routePaths[day]=g;
-});
-
-/* hotel → the first stop of each day */
-var gHotel=el("g",{});
-svg.insertBefore(gHotel, gPoi);
-["sat","sun","mon"].forEach(function(day){
-  var R=HOTEL.routes[day]; if(!R) return;
-  var lat=R.lat,lon=R.lon,s="M"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1);
-  for(var i=0;i<R.d.length;i+=2){ lat+=R.d[i]; lon+=R.d[i+1]; s+="L"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1); }
-  var g=el("g",{"data-hotelday":day});
-  g.appendChild(el("path",{d:s,class:"routeline case rtc"}));
-  g.appendChild(el("path",{d:s,class:"routeline rtf hotelline",stroke:"#0B8043","stroke-opacity":".7","stroke-dasharray":"0.1 13"}));
-  gHotel.appendChild(g);
-});
-
-/* Saturday evening plan: campus, then the family gathering */
-var gPlan=el("g",{});
-svg.insertBefore(gPlan, gPoi);
-["h5_tcu","tcu_bash"].forEach(function(k){
-  var R=PLANRT[k]; if(!R) return;
-  var lat=R.lat,lon=R.lon,s="M"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1);
-  for(var i=0;i<R.d.length;i+=2){ lat+=R.d[i]; lon+=R.d[i+1]; s+="L"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1); }
-  gPlan.appendChild(el("path",{d:s,class:"routeline case rtc"}));
-  gPlan.appendChild(el("path",{d:s,class:"routeline rtf planline",stroke:"#7B45C4","stroke-opacity":".85","stroke-dasharray":"0.1 11"}));
-});
-
-/* per-house errand routes, drawn only for the focused house */
-var gErr=el("g",{class:"errroutes"});
-svg.insertBefore(gErr, gPoi);
+/* per-house errand runs, drawn only for the focused house */
 var ERRCOLOR={costco:"#1A73E8",grocery:"#188038",bigbox:"#F29900",park:"#7B45C4"};
 var errPins=[];
 function drawErrandRoutes(n){
-  gErr.innerHTML=""; errPins=[];
-  if(!n||!EROUTES[n]) return;
+  errandLines=[];
+  errPins.forEach(function(p){ if(p.g.parentNode) p.g.parentNode.removeChild(p.g); });
+  errPins=[];
+  if(!n||!EROUTES[n]){ scheduleRender(); return; }
   ["costco","grocery","bigbox","park"].forEach(function(cat){
     var R=EROUTES[n][cat]; if(!R) return;
-    var lat=R.lat,lon=R.lon,s="M"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1);
-    for(var i=0;i<R.d.length;i+=2){ lat+=R.d[i]; lon+=R.d[i+1]; s+="L"+px(lon/1e5).toFixed(1)+" "+py(lat/1e5).toFixed(1); }
-    var g=el("g",{});
-    g.appendChild(el("path",{d:s,class:"routeline case rtc","stroke-opacity":".9"}));
-    g.appendChild(el("path",{d:s,class:"routeline rtf errline",stroke:ERRCOLOR[cat],"stroke-dasharray":"0.1 14"}));
-    gErr.appendChild(g);
+    var pts=decodeDeltas(R.lat,R.lon,R.d);
+    errandLines.push({pts:pts,bb:bboxOf(pts),color:ERRCOLOR[cat],dash:[0.02,2.8],w:5});
     var p=makePin({kind:"errand",lat:R.dlat/1e5,lon:R.dlon/1e5,r:11,
       icon:CATMETA[cat].icon,color:ERRCOLOR[cat],brand:R.b,
       title:R.nm+" — "+R.m+" min, "+R.mi+" mi",filter:"__focus"});
@@ -1133,9 +1218,9 @@ function drawErrandRoutes(n){
   applyView();
 }
 function clearErrandRoutes(){
-  gErr.innerHTML="";
+  errandLines=[];
   errPins.forEach(function(p){ if(p.g.parentNode) p.g.parentNode.removeChild(p.g); });
-  errPins=[];
+  errPins=[]; scheduleRender();
 }
 
 /* pins */
@@ -1204,25 +1289,26 @@ gMe.appendChild(mePin);
 var BOUND=(function(){
   var xs=[],ys=[];
   HOUSES.concat(AMEN,ACT,FOOD,STOPS,EVENTS,[HOTEL.info]).forEach(function(o){ xs.push(px(o.lon)); ys.push(py(o.lat)); });
-  return {x0:Math.min.apply(null,xs)-2200,x1:Math.max.apply(null,xs)+2200,
-          y0:Math.min.apply(null,ys)-2200,y1:Math.max.apply(null,ys)+2200};
+  var pad=9000;
+  return {x0:Math.min.apply(null,xs)-pad,x1:Math.max.apply(null,xs)+pad,
+          y0:Math.min.apply(null,ys)-pad,y1:Math.max.apply(null,ys)+pad};
 })();
 var MINW=900;
 function maxW(){
-  /* let the view span the whole data box on either axis; vertical slack is fine
-     now that the map reaches from Haslet to the hotel in Irving */
-  return Math.max(BOUND.x1-BOUND.x0,(BOUND.y1-BOUND.y0)/svgAR());
+  /* zooming out is allowed to overshoot the data by half again, so the whole
+     weekend fits with room around it instead of stopping dead */
+  return Math.max(BOUND.x1-BOUND.x0,(BOUND.y1-BOUND.y0)/svgAR())*1.5;
 }
 function clamp(){
   view.w=Math.min(Math.max(view.w,MINW),maxW());
   view.h=view.w*(svgAR());
   /* keep the centre of the view inside the data, but allow it off-centre so a
      focused house can sit below a card that covers the top of the screen */
+  /* the centre may wander a little outside the data so the edges are reachable */
+  var slackX=view.w*0.35, slackY=view.h*0.35;
   var cxm=view.x+view.w/2, cym=view.y+view.h/2;
-  cxm=Math.min(Math.max(cxm,BOUND.x0),BOUND.x1);
-  cym=Math.min(Math.max(cym,BOUND.y0),BOUND.y1);
-  if(view.w>=BOUND.x1-BOUND.x0) cxm=(BOUND.x0+BOUND.x1)/2;
-  if(view.h>=BOUND.y1-BOUND.y0) cym=(BOUND.y0+BOUND.y1)/2;
+  cxm=Math.min(Math.max(cxm,BOUND.x0-slackX),BOUND.x1+slackX);
+  cym=Math.min(Math.max(cym,BOUND.y0-slackY),BOUND.y1+slackY);
   view.x+= (cxm-(view.x+view.w/2));
   view.y+= (cym-(view.y+view.h/2));
 }
@@ -1230,39 +1316,29 @@ var SZ={w:900,h:700};
 function measure(){ SZ.w=svg.clientWidth||900; SZ.h=svg.clientHeight||700; }
 function svgAR(){ return SZ.h/SZ.w; }
 var view={x:0,y:0,w:1,h:1};
-var rafPending=false, tileTimer=null;
-function scheduleTiles(){
-  clearTimeout(tileTimer);
-  tileTimer=setTimeout(drawTiles,110);
+var rafPending=false;
+function scheduleRender(){ applyView(); }
+function applyView(){
+  if(rafPending) return;
+  rafPending=true;
+  requestAnimationFrame(function(){ rafPending=false; renderView(); });
 }
-function applyView(){ if(rafPending) return; rafPending=true; requestAnimationFrame(function(){ rafPending=false; renderView(); }); }
 function renderView(){
   clamp();
   svg.setAttribute("viewBox",view.x+" "+view.y+" "+view.w+" "+view.h);
-  var s=view.w/SZ.w;
+  var info=paintMap();
+  var inv=view.w/SZ.w;                       /* map units per screen pixel */
+  var mPerPx=info.mPerPx;
   pinNodes.concat(errPins).forEach(function(p){
-    p.g.setAttribute("transform","translate("+px(p.data.lon)+","+py(p.data.lat)+") scale("+s+")");
+    p.g.setAttribute("transform","translate("+px(p.data.lon)+","+py(p.data.lat)+") scale("+inv+")");
   });
-  if(me) mePin.setAttribute("transform","translate("+px(me.lon)+","+py(me.lat)+") scale("+s+")");
+  if(me) mePin.setAttribute("transform","translate("+px(me.lon)+","+py(me.lat)+") scale("+inv+")");
   Array.prototype.forEach.call(gLbl.children,function(t){
     var x=+t.getAttribute("x"),y=+t.getAttribute("y");
-    t.setAttribute("transform","translate("+x+","+y+") scale("+s+") translate("+(-x)+","+(-y)+")");
+    t.setAttribute("transform","translate("+x+","+y+") scale("+inv+") translate("+(-x)+","+(-y)+")");
   });
-  var mPerUnit=metersPerUnit(32.93), mPerPx=s*mPerUnit;
-  var showRes = mPerPx<9, showPoi = mPerPx<3.2, bigPoi = mPerPx<1.6;
-  /* road widths grow as you zoom in, the way they do on a real map */
-  var f = Math.max(1, Math.min(4.2, 14/Math.max(mPerPx,0.6)));
-  var root=document.documentElement.style;
-  root.setProperty("--w0c",(13*Math.min(f,2.2)*s).toFixed(2));
-  root.setProperty("--w0f",(9*Math.min(f,2.2)*s).toFixed(2));
-  root.setProperty("--w1c",(7*Math.min(f,2.6)*s).toFixed(2));
-  root.setProperty("--w1f",(5*Math.min(f,2.6)*s).toFixed(2));
-  root.setProperty("--w2c",(3.4*f*s).toFixed(2));
-  root.setProperty("--w2f",(2.2*f*s).toFixed(2));
-  root.setProperty("--w3c",(2.6*Math.min(f,3.4)*s).toFixed(2));
-  root.setProperty("--w3f",(1.6*Math.min(f,3.4)*s).toFixed(2));
-  gCase3.style.display=showRes?"":"none";
-  gFill3.style.display=showRes?"":"none";
+  gLbl.style.display=(layers.labels && mPerPx<240)?"":"none";
+  var showPoi=mPerPx<3.2, bigPoi=mPerPx<1.6;
   gPoi.style.display=(showPoi&&layers.places)?"":"none";
   if(showPoi&&layers.places){
     poiNodes.forEach(function(p){
@@ -1270,17 +1346,14 @@ function renderView(){
       if(x<view.x||x>view.x+view.w||y<view.y||y>view.y+view.h){ p.g.style.display="none"; return; }
       if(!bigPoi && (p.cat==="shop"||p.cat==="wor"||p.cat==="bank")){ p.g.style.display="none"; return; }
       p.g.style.display="";
-      p.g.setAttribute("transform","translate("+x+","+y+") scale("+s+")");
+      p.g.setAttribute("transform","translate("+x+","+y+") scale("+inv+")");
     });
   }
-  root.setProperty("--rtc",(9*s).toFixed(2));
-  root.setProperty("--rtf",(5*s).toFixed(2));
-  var pxPerMile=(1609.34/mPerUnit)/s, mi=1;
+  var pxPerMile=(1609.34/metersPerUnit(32.93))/inv, mi=1;
   while(pxPerMile*mi<50) mi*=2;
   while(pxPerMile*mi>140) mi/=2;
   document.getElementById("scaleline").style.width=Math.round(pxPerMile*mi)+"px";
   document.getElementById("scaletext").textContent=(mi<1?mi.toFixed(2).replace(/0+$/,""):mi)+" mi";
-  scheduleTiles();
 }
 function fit(){
   var pts=pinNodes.filter(function(p){ return shown[p.data.filter]; });
@@ -1327,32 +1400,32 @@ document.getElementById("fitBtn").onclick=function(){ exitFocus(); fit(); };
 
 /* ---------------- layers ---------------- */
 function applyLayers(){
-  var sat = mapStyle==="satellite", ter = mapStyle==="terrain";
+  var sat=mapStyle==="satellite", ter=mapStyle==="terrain";
   document.body.classList.toggle("satmode",sat);
-  gRoute.style.display=layers.routes?"":"none";
-  gLbl.style.display=layers.labels?"":"none";
-  gPoly.style.display=(layers.green && !sat)?"":"none";
-  document.documentElement.style.setProperty("--poi-label", sat?"#F1F3F4":"#3C4043");
-  document.documentElement.style.setProperty("--poi-halo", sat?"rgba(0,0,0,.7)":"#FFFFFF");
-  gCase.style.opacity = sat?".35":"1";
-  gFill.style.opacity = sat?".7":"1";
-  gCase3.style.opacity = sat?".2":"1";
-  gFill3.style.opacity = sat?".55":"1";
-  document.documentElement.style.setProperty("--land", ter?"#EDEFE7":(sat?"#20262B":(mapStyle==="clean"?"#F8F9FA":"#F1F3F4")));
-  document.documentElement.style.setProperty("--green", ter?"#C4DFBB":"#CBE7C8");
-  document.documentElement.style.setProperty("--green-2", ter?"#AED4A6":"#B6DDB2");
-  document.documentElement.style.setProperty("--map-label", sat?"#FFFFFF":"#5F6368");
-  document.documentElement.style.setProperty("--map-label-halo", sat?"rgba(0,0,0,.65)":"#F8F9FA");
-  if(mapStyle==="clean") gPoly.style.display="none";
-  if(ter) gPoly.style.opacity=".55"; else gPoly.style.opacity="1";
+  var root=document.documentElement.style;
+  root.setProperty("--land", ter?"#EDEFE7":(sat?"#20262B":(mapStyle==="clean"?"#F8F9FA":"#F1F3F4")));
+  root.setProperty("--green", ter?"#C4DFBB":"#CBE7C8");
+  root.setProperty("--green-2", ter?"#AED4A6":"#B6DDB2");
+  root.setProperty("--map-label", sat?"#FFFFFF":"#5F6368");
+  root.setProperty("--map-label-halo", sat?"rgba(0,0,0,.65)":"#F8F9FA");
   document.getElementById("layerSwatch").style.background =
     sat ? "linear-gradient(150deg,#4B5A46,#2F3B33 60%,#5E6B4F)" :
     ter ? "linear-gradient(160deg,#E9EFE3,#CBE7C8 60%,#9FC49A)" :
     mapStyle==="clean" ? "#F8F9FA" : "linear-gradient(160deg,#F8F9FA 55%,#CBE7C8)";
   var set=TILESETS[mapStyle];
   document.getElementById("tileAttrib").textContent = set ? " · "+set.attrib : "";
-  tileCache={}; gTiles.innerHTML="";
-  scheduleTiles();
+  readColors();
+  routeVisibility();
+  scheduleRender();
+}
+function routeVisibility(){
+  ROUTELINES.forEach(function(r){
+    var kind=r.key.split(":")[0], day=r.key.split(":")[1];
+    if(focused!==null){ r.on=false; return; }
+    if(kind==="day")   r.on = !!shown[day];
+    else if(kind==="hotel") r.on = !!(shown.hotel && shown[day]);
+    else r.on = !!shown.sat;          /* the Saturday evening plan */
+  });
 }
 document.getElementById("layerToggle").onclick=function(){
   var p=document.getElementById("layerPanel"),open=p.classList.toggle("open");
@@ -1636,7 +1709,8 @@ function cardHTML(h){
   var m=DAYMETA[day];
   var bar=document.createElement("div");
   bar.className="daybar d"+day;
-  bar.innerHTML='<i class="dot"></i><h3>'+m.full+'</h3><span class="when">'+m.when+'</span><span class="side-note">'+m.side+'</span>';
+  bar.innerHTML='<i class="dot"></i><h3>'+m.full+'</h3><span class="when">'+m.when+'</span>'+
+    '<span class="wx" id="wx-'+day+'"></span>';
   daysBox.appendChild(bar);
   var line=document.createElement("div");
   line.className="dayline";
@@ -1666,6 +1740,7 @@ function cardHTML(h){
         '<div class="ev-note">'+esc(ev.note)+'</div>'+
         (ev.rsvp?'<div class="ev-rsvp">'+esc(ev.rsvp)+'</div>':'')+
         '<div class="ev-legs"><span class="ev-leg">'+esc(ev.legMin)+' min &middot; '+ev.legMi+' mi from '+esc(ev.legFrom)+'</span>'+
+          (ev.id==="bash"?'<span class="ev-leg wxbash" id="wx-bash"></span>':'')+
           '<a class="chipbtn" href="'+gmapNav(ev.addr)+'" target="_blank" rel="noopener">Drive here</a></div>'+
       '</div>';
     card.addEventListener("click",function(e){
@@ -1992,9 +2067,7 @@ function focusHouse(n){
     p.g.classList.toggle("faded",other);
     p.g.style.display = other ? "none" : (shown[p.data.filter]?"":"none");
   });
-  ["sat","sun","mon"].forEach(function(d){ routePaths[d].style.display="none"; });
-  gPlan.style.display="none";
-  gHotel.style.display="none";
+  routeVisibility();
   drawErrandRoutes(String(n));
   var R=EROUTES[String(n)];
   var xs=[px(h.lon)],ys=[py(h.lat)];
@@ -2033,7 +2106,7 @@ function exitFocus(){
   focused=null;
   document.body.classList.remove("focusmode");
   pinNodes.forEach(function(p){ p.g.classList.remove("faded"); p.g.style.display=shown[p.data.filter]?"":"none"; });
-  ["sat","sun","mon"].forEach(function(d){ routePaths[d].style.display=(shown[d]&&layers.routes)?"":"none"; });
+  routeVisibility();
   clearErrandRoutes();
   document.getElementById("focusPanel").classList.remove("on");
   if(typeof drawStrip==="function") drawStrip();
@@ -2205,13 +2278,7 @@ function paintPins(){
     p.g.style.display=(shown[p.data.filter]&&!hideOther)?"":"none";
     if(p.data.kind==="house") p.g.classList.toggle("done",st(p.data.n).seen);
   });
-  gHotel.style.display="";
-  ["sat","sun","mon"].forEach(function(d){ routePaths[d].style.display=(shown[d]&&layers.routes&&focused===null)?"":"none"; });
-  gPlan.style.display=(shown.sat&&layers.routes&&focused===null)?"":"none";
-  Array.prototype.forEach.call(gHotel.children,function(g){
-    var d=g.getAttribute("data-hotelday");
-    g.style.display=(shown.hotel&&shown[d]&&layers.routes&&focused===null)?"":"none";
-  });
+  routeVisibility();
   document.querySelectorAll(".hcard").forEach(function(c){
     var h=HOUSES.filter(function(x){return x.n===+c.dataset.n;})[0];
     c.style.display=shown[h.day]?"":"none";
@@ -2415,6 +2482,53 @@ strip.addEventListener("click",function(e){
   var on=strip.querySelector(".hstile.on");
   if(on) on.scrollIntoView({inline:"center",block:"nearest",behavior:"smooth"});
 });
+
+/* ---------------- weather ----------------
+   Live from Open-Meteo: no key, no account. Shows what it is doing right now and
+   what to expect at the hour each day starts, plus the day's high. */
+var WCODE={0:["Clear","☀"],1:["Mostly clear","🌤"],2:["Partly cloudy","⛅"],3:["Cloudy","☁"],
+  45:["Fog","🌫"],48:["Fog","🌫"],51:["Drizzle","🌦"],53:["Drizzle","🌦"],55:["Drizzle","🌦"],
+  61:["Rain","🌧"],63:["Rain","🌧"],65:["Heavy rain","🌧"],80:["Showers","🌦"],81:["Showers","🌦"],
+  82:["Heavy showers","⛈"],95:["Thunderstorms","⛈"],96:["Thunderstorms","⛈"],99:["Thunderstorms","⛈"]};
+var DAYDATE={sat:"2026-09-05",sun:"2026-09-06",mon:"2026-09-07"};
+var DAYHOUR={sat:"11:00",sun:"14:00",mon:"10:00"};
+function loadWeather(){
+  var u="https://api.open-meteo.com/v1/forecast?latitude=32.93&longitude=-97.30"+
+        "&current=temperature_2m,apparent_temperature,weather_code"+
+        "&hourly=temperature_2m,precipitation_probability"+
+        "&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max"+
+        "&temperature_unit=fahrenheit&timezone=America%2FChicago&forecast_days=10";
+  fetch(u).then(function(r){ return r.ok?r.json():null; }).then(function(w){
+    if(!w) return;
+    var cur=document.getElementById("wxnow");
+    if(cur&&w.current){
+      var c=WCODE[w.current.weather_code]||["",""];
+      cur.innerHTML='<b>'+Math.round(w.current.temperature_2m)+'&deg;</b><span>'+c[1]+' '+esc(c[0])+
+        ' &middot; feels '+Math.round(w.current.apparent_temperature)+'&deg;</span>';
+      cur.title="Fort Worth right now, from Open-Meteo";
+    }
+    ["sat","sun","mon"].forEach(function(day){
+      var di=w.daily.time.indexOf(DAYDATE[day]);
+      var hi=w.hourly.time.indexOf(DAYDATE[day]+"T"+DAYHOUR[day]);
+      var box=document.getElementById("wx-"+day);
+      if(!box||di<0) return;
+      var c=WCODE[w.daily.weather_code[di]]||["",""];
+      var atStart = hi>=0 ? Math.round(w.hourly.temperature_2m[hi])+"&deg; at "+DAYMETA[day].when.replace("from ","") : "";
+      box.innerHTML=c[1]+' <b>'+Math.round(w.daily.temperature_2m_max[di])+'&deg;</b>/'+
+        Math.round(w.daily.temperature_2m_min[di])+'&deg;'+(atStart?' &middot; '+atStart:'')+
+        (w.daily.precipitation_probability_max[di]>=25?' &middot; '+w.daily.precipitation_probability_max[di]+'% rain':'');
+      box.title=c[0]+" — high "+Math.round(w.daily.temperature_2m_max[di])+"°F";
+    });
+    /* the gathering is outdoors, so call out the 5pm number */
+    var bash=document.getElementById("wx-bash");
+    if(bash){
+      var bi=w.hourly.time.indexOf("2026-09-05T17:00");
+      if(bi>=0) bash.textContent=Math.round(w.hourly.temperature_2m[bi])+"° at 5 PM";
+    }
+  }).catch(function(){});
+}
+loadWeather();
+setInterval(loadWeather,15*60*1000);
 
 applyLayers(); paintPins(); paintMeter(); paintNext(); drawStrip(); fit();
 syncPhotos(); pullDoc();

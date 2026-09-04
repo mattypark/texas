@@ -3,9 +3,13 @@
 Interactive map + check-off list for 14 house showings across north Fort Worth,
 Keller and Haslet over Labor Day weekend 2026.
 
-- **Map** — a Google-Maps-style vector map drawn from OpenStreetMap geometry:
-  road casings and fills, water, parks and green space, city labels. Pan, wheel
-  zoom, fit-to-pins, scale bar. No tile server, no API key, no dependencies.
+- **Weather** — live current conditions in the list header and, on each day, the high,
+  low and the temperature at the hour that day starts (Open-Meteo, no key). The
+  outdoor gathering also shows its 5pm number.
+- **Map** — a Google-Maps-style vector map painted on canvas from OpenStreetMap geometry:
+  road casings and fills, water, parks and green space, city labels. Geometry is
+  decoded once into typed arrays and culled to the viewport each frame; pins, labels
+  and place names stay as SVG on top. Pan, wheel zoom, fit-to-pins, scale bar.
 - **Icon markers** — houses carry a house marker with their visiting number as a
   badge, coloured by day; Costco, groceries, Walmart/Target, parks, pharmacies,
   restaurants and things to do each get their own marker.
