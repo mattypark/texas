@@ -36,6 +36,21 @@ Keller and Haslet over Labor Day weekend 2026.
 - **Food and detours** — nearby restaurants with rating, review count and the
   platform each figure came from, plus non-house stops worth the drive.
 
+## The listings
+
+`data/house-run-comparison.csv` is the source for price, beds, baths, square footage,
+lot, year built, HOA, days on market, MLS number, status and the per-house notes. It
+is baked into the page at build time, so every card leads with the asking price and
+`5 bd · 3.5 ba · 3,979 sqft · $141/sqft`, and the detail panel carries the full spec
+block plus the sheet's own note.
+
+The comparison table has two views: **The homes** (price, $/sqft, sqft, beds, days
+listed) and **Errand times** (Costco, grocery, Walmart, park, hotel). Best in each
+column is green. A row greys out when the listing is contingent.
+
+Typing a price on a card overrides the sheet for everyone; the button's tooltip still
+shows what the listing said.
+
 ## Errand times
 
 Every house carries real driving times to the stops the family actually uses, so a
